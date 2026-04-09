@@ -3,8 +3,25 @@ import type { PhaseStateMachine } from "./phase.js";
 import { guidelinesForPhase } from "./guidelines.js";
 
 export function buildSystemPrompt(machine: PhaseStateMachine, config: TDDConfig): string {
+  if (!config.enabled) {
+    return "[TDD MODE - DISABLED]\nTDD enforcement is disabled by configuration.";
+  }
+
   if (!machine.enabled) {
-    return "[TDD MODE - DISABLED]\nTDD enforcement is currently disabled for this session.";
+    const lines = [
+      "[TDD MODE - dormant]",
+      "TDD enforcement is currently dormant. Investigation, navigation, code review, and exploratory work are unconstrained.",
+      "",
+      "When you start work on a feature or bug fix, call the `tdd_engage` tool first (phase: SPEC if requirements need clarification, RED if you can write the failing test immediately).",
+      "Call `tdd_disengage` when leaving feature work or switching back to investigation.",
+    ];
+    if (config.engageOnTools.length > 0) {
+      lines.push("");
+      lines.push(
+        `TDD will also auto-engage when these tools are called: ${config.engageOnTools.join(", ")}.`
+      );
+    }
+    return lines.join("\n");
   }
 
   const phase = machine.phase;

@@ -15,6 +15,9 @@ const DEFAULTS: Omit<TDDConfig, "guidelines"> = {
   maxDiffsInContext: 5,
   persistPhase: true,
   startInSpecMode: false,
+  defaultEngaged: false,
+  engageOnTools: [],
+  disengageOnTools: [],
 };
 
 type UserConfig = Partial<Omit<TDDConfig, "guidelines">> & {

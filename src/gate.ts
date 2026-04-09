@@ -13,7 +13,7 @@ export async function gateToolCalls(
   config: TDDConfig,
   ctx: ExtensionContext
 ): Promise<(ToolCallEventResult | undefined)[]> {
-  if (!machine.enabled) {
+  if (!config.enabled || !machine.enabled) {
     return events.map(() => undefined);
   }
 

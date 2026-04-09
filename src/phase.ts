@@ -14,7 +14,7 @@ export class PhaseStateMachine {
       lastTestOutput: initial?.lastTestOutput ?? null,
       lastTestFailed: initial?.lastTestFailed ?? null,
       cycleCount: initial?.cycleCount ?? 0,
-      enabled: initial?.enabled ?? true,
+      enabled: initial?.enabled ?? false,
       plan: initial?.plan ?? [],
       planCompleted: initial?.planCompleted ?? 0,
     };
@@ -181,7 +181,7 @@ export class PhaseStateMachine {
 
   statusText(): string {
     if (!this.state.enabled) {
-      return "[TDD: OFF]";
+      return "[TDD: dormant]";
     }
 
     if (this.state.phase === "SPEC") {
@@ -193,5 +193,14 @@ export class PhaseStateMachine {
     const planProgress =
       this.state.plan.length > 0 ? ` | Spec: ${this.state.planCompleted}/${this.state.plan.length}` : "";
     return `[TDD: ${this.state.phase}] | Tests: ${testStatus} | Cycle: ${this.state.cycleCount}${planProgress}`;
+  }
+
+  /**
+   * Status text for the Pi bottom-bar indicator. Returns undefined when TDD is
+   * dormant so the indicator disappears entirely — there's nothing useful to
+   * communicate while TDD is not enforcing anything.
+   */
+  bottomBarText(): string | undefined {
+    return this.state.enabled ? this.statusText() : undefined;
   }
 }

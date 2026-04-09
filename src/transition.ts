@@ -39,7 +39,7 @@ export async function evaluateTransition(
   config: TDDConfig,
   ctx: ExtensionContext
 ): Promise<void> {
-  if (!machine.enabled || !config.autoTransition) {
+  if (!config.enabled || !machine.enabled || !config.autoTransition) {
     return;
   }
 
@@ -86,7 +86,7 @@ export async function evaluateTransition(
   if (ctx.hasUI) {
     ctx.ui.notify(`TDD phase -> ${verdict.transition} (${verdict.reason})`, "info");
   }
-  ctx.ui.setStatus("tdd-gate", machine.statusText());
+  ctx.ui.setStatus("tdd-gate", machine.bottomBarText());
 }
 
 export function fallbackTransition(

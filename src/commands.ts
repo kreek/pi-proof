@@ -1,5 +1,5 @@
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
-import type { TDDPhase } from "./types.js";
+import type { TDDConfig, TDDPhase } from "./types.js";
 import type { PhaseStateMachine } from "./phase.js";
 
 const VALID_PHASES: TDDPhase[] = ["SPEC", "RED", "GREEN", "REFACTOR"];
@@ -10,14 +10,16 @@ export async function handleTddCommand(
   rawArgs: string,
   machine: PhaseStateMachine,
   ctx: ExtensionCommandContext,
-  publish: Publish
+  publish: Publish,
+  config?: Pick<TDDConfig, "enabled">
 ): Promise<void> {
   const args = splitCommandArgs(rawArgs);
   const sub = (args[0] ?? "status").toLowerCase();
+  const configDisabled = config?.enabled === false;
 
   switch (sub) {
     case "status":
-      publish(formatStatus(machine));
+      publish(formatStatus(machine, configDisabled));
       return;
 
     case "spec":
@@ -25,6 +27,11 @@ export async function handleTddCommand(
     case "red":
     case "green":
     case "refactor": {
+      if (configDisabled) {
+        publishDisabled(machine, ctx, publish);
+        return;
+      }
+
       const normalized = sub === "plan" ? "SPEC" : sub.toUpperCase();
       const target = normalized as TDDPhase;
       if (!VALID_PHASES.includes(target)) {
@@ -36,11 +43,20 @@ export async function handleTddCommand(
         machine.completePlanItem();
       }
 
+      const wasDormant = !machine.enabled;
+      machine.enabled = true;
+
       const ok = machine.transitionTo(target, "User forced via /tdd command", target !== machine.nextPhase());
+      ctx.ui.setStatus("tdd-gate", machine.bottomBarText());
       if (ok) {
-        ctx.ui.setStatus("tdd-gate", machine.statusText());
-        ctx.ui.notify(`TDD phase -> ${target}`, "info");
-        publish(`Phase set to ${target}.`);
+        ctx.ui.notify(
+          wasDormant ? `TDD engaged in ${target}` : `TDD phase -> ${target}`,
+          "info"
+        );
+        publish(wasDormant ? `TDD engaged. Phase set to ${target}.` : `Phase set to ${target}.`);
+      } else if (wasDormant) {
+        ctx.ui.notify(`TDD engaged in ${target}`, "info");
+        publish(`TDD engaged. Already in ${target} phase.`);
       } else {
         publish(`Already in ${target} phase.`);
       }
@@ -79,17 +95,23 @@ export async function handleTddCommand(
     }
 
     case "off":
+    case "disengage":
       machine.enabled = false;
-      ctx.ui.setStatus("tdd-gate", machine.statusText());
-      ctx.ui.notify("TDD enforcement disabled", "warning");
-      publish("TDD enforcement disabled for this session.");
+      ctx.ui.setStatus("tdd-gate", machine.bottomBarText());
+      ctx.ui.notify("TDD disengaged", "info");
+      publish("TDD disengaged. Investigation and navigation are unconstrained.");
       return;
 
     case "on":
+    case "engage":
+      if (configDisabled) {
+        publishDisabled(machine, ctx, publish);
+        return;
+      }
       machine.enabled = true;
-      ctx.ui.setStatus("tdd-gate", machine.statusText());
-      ctx.ui.notify("TDD enforcement enabled", "info");
-      publish(`TDD enforcement enabled. Phase: ${machine.phase}.`);
+      ctx.ui.setStatus("tdd-gate", machine.bottomBarText());
+      ctx.ui.notify("TDD engaged", "info");
+      publish(`TDD engaged. Phase: ${machine.phase}.`);
       return;
 
     case "history":
@@ -101,23 +123,38 @@ export async function handleTddCommand(
   }
 }
 
-function formatStatus(machine: PhaseStateMachine): string {
+function formatStatus(machine: PhaseStateMachine, configDisabled = false): string {
   const snap = machine.getSnapshot();
   const lines = [
-    machine.statusText(),
+    configDisabled ? "[TDD: disabled]" : machine.statusText(),
     "",
     `Phase:      ${snap.phase}`,
-    `Enabled:    ${snap.enabled}`,
+    `Enabled:    ${configDisabled ? false : snap.enabled}`,
     `Cycle:      ${snap.cycleCount}`,
     `Test state: ${snap.lastTestFailed === null ? "unknown" : snap.lastTestFailed ? "failing" : "passing"}`,
     `Diffs:      ${snap.diffs.length} accumulated`,
   ];
+
+  if (configDisabled) {
+    lines.push("Mode:       disabled by configuration");
+  }
 
   if (snap.plan.length > 0) {
     lines.push(`Spec:       ${snap.planCompleted}/${snap.plan.length} completed`);
   }
 
   return lines.join("\n");
+}
+
+function publishDisabled(
+  machine: PhaseStateMachine,
+  ctx: ExtensionCommandContext,
+  publish: Publish
+): void {
+  machine.enabled = false;
+  ctx.ui.setStatus("tdd-gate", machine.bottomBarText());
+  ctx.ui.notify("TDD is disabled by configuration", "warning");
+  publish("TDD is disabled by configuration.");
 }
 
 function formatSpec(machine: PhaseStateMachine): string {
@@ -202,13 +239,13 @@ export function splitCommandArgs(raw: string): string[] {
 const HELP_TEXT = `Usage: /tdd [subcommand]
 
 /tdd status
-/tdd spec
-/tdd red
-/tdd green
-/tdd refactor
+/tdd spec       (engages and switches to SPEC)
+/tdd red        (engages and switches to RED)
+/tdd green      (engages and switches to GREEN)
+/tdd refactor   (engages and switches to REFACTOR)
 /tdd spec-set "Criterion 1" "Criterion 2"
 /tdd spec-show
 /tdd spec-done
-/tdd off
-/tdd on
+/tdd engage     (alias /tdd on)
+/tdd disengage  (alias /tdd off)
 /tdd history`;

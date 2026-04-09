@@ -60,7 +60,15 @@ If Pi is already running, execute:
 
 ### 3. Start Using The Gate
 
-Open Pi in your project and try:
+`pi-tdd` is **dormant by default**. A fresh session does not gate anything, so investigation, navigation, branch checkouts, code review, and other non-feature work all flow normally.
+
+The gate engages in three ways:
+
+1. **The agent calls `tdd_engage`** when it recognises feature or bug-fix work. This is the natural path: you can prompt with normal language like "fix the off-by-one in pagination" and the agent will engage TDD on its own before making any code changes.
+2. **A configured task-management tool fires** (e.g., `mcp__manifest__start_feature`). See `engageOnTools` below.
+3. **You run an explicit `/tdd` phase command** like `/tdd spec` or `/tdd red`. These both engage TDD and switch to that phase.
+
+A worked example using slash commands directly:
 
 ```text
 /tdd status
@@ -81,7 +89,7 @@ Acceptance criteria:
 Write the first failing test only. Do not implement the fix yet.
 ```
 
-After the failing test is confirmed, let the agent make the minimal implementation change. Once the test passes, the extension can move the session into `REFACTOR`.
+After the failing test is confirmed, let the agent make the minimal implementation change. Once the test passes, the extension can move the session into `REFACTOR`. When the work is finished or you switch to investigation, run `/tdd disengage` (or let the agent call `tdd_disengage`).
 
 ## Pi
 
@@ -159,16 +167,20 @@ Use `SPEC` when the request needs to be sharpened into something testable. Skip 
 ## What The Extension Does
 
 - Adds a `/tdd` command inside Pi.
+- Registers `tdd_engage` and `tdd_disengage` tools the agent can call directly.
 - Tracks the current phase: `SPEC`, `RED`, `GREEN`, or `REFACTOR`.
-- Injects phase-specific system prompt guidance on every turn.
+- Injects phase-specific system prompt guidance on every turn (only while engaged).
 - Uses an LLM judge to approve or block phase-sensitive tool calls.
 - Detects common test commands such as `npm test`, `pnpm test`, `pytest`, `cargo test`, `go test`, `vitest`, `jest`, and `rspec`.
 - Auto-advances from `RED -> GREEN` after a failing test signal and from `GREEN -> REFACTOR` after a passing test signal.
-- Persists state in the Pi session so the phase survives restarts and branch navigation.
+- Persists phase state in the Pi session so the cycle survives within-session navigation.
 
 Important behavior details:
 
-- By default, the extension starts in `RED`, not `SPEC`.
+- **TDD is dormant by default.** Fresh sessions do not gate anything until the agent or user engages TDD. This keeps investigation, navigation, code review, and other non-feature work unconstrained.
+- The agent engages TDD by calling `tdd_engage(phase, reason)`. Phase defaults to `SPEC`; pass `RED` when acceptance criteria are already clear.
+- You can also engage by running an explicit `/tdd spec`, `/tdd red`, `/tdd green`, or `/tdd refactor` command.
+- Configurable lifecycle hooks can auto-engage when known task-management tools fire (see `engageOnTools` / `disengageOnTools` below).
 - `SPEC` does not auto-advance. You move out of it with `/tdd red`.
 - In the default config, `REFACTOR -> RED` is user-controlled, so you explicitly start the next cycle.
 - Read-only exploration is allowed in all phases by default.
@@ -177,18 +189,27 @@ Important behavior details:
 ## `/tdd` Commands
 
 - `/tdd status`: show current phase, test status, and cycle count
-- `/tdd spec`: switch to `SPEC`
-- `/tdd red`: switch to `RED`
-- `/tdd green`: switch to `GREEN`
-- `/tdd refactor`: switch to `REFACTOR`
+- `/tdd spec`: engage TDD and switch to `SPEC`
+- `/tdd red`: engage TDD and switch to `RED`
+- `/tdd green`: engage TDD and switch to `GREEN`
+- `/tdd refactor`: engage TDD and switch to `REFACTOR`
 - `/tdd spec-set "Criterion 1" "Criterion 2"`: store the feature spec checklist
 - `/tdd spec-show`: show the active spec checklist
 - `/tdd spec-done`: mark the current spec item complete
 - `/tdd history`: show phase transitions
-- `/tdd off`: disable enforcement for the current session
-- `/tdd on`: re-enable enforcement
+- `/tdd engage` (alias `/tdd on`): engage TDD without changing phase
+- `/tdd disengage` (alias `/tdd off`): disengage TDD for investigation/navigation
 
 Legacy `/tdd plan`, `/tdd plan-set`, `/tdd plan-show`, and `/tdd plan-done` aliases still work for compatibility.
+
+## Agent Tools
+
+The extension registers two LLM-callable tools so the agent can manage TDD on its own:
+
+- `tdd_engage(phase?, reason)`: engage the gate at the start of feature or bug-fix work. `phase` defaults to `SPEC`; pass `RED` if acceptance criteria are already clear enough to write the first failing test.
+- `tdd_disengage(reason)`: disengage when leaving feature work.
+
+The agent is instructed to call these via the tool's prompt guidelines. You generally do not need to call them yourself — they exist so natural-language workflows can flow without slash-command interruptions.
 
 ## Recommended Workflow
 
@@ -220,21 +241,31 @@ Example:
 {
   "tddGate": {
     "enabled": true,
+    "defaultEngaged": false,
     "startInSpecMode": true,
     "persistPhase": true,
     "autoTransition": true,
     "refactorTransition": "user",
     "allowReadInAllPhases": true,
     "temperature": 0,
-    "maxDiffsInContext": 5
+    "maxDiffsInContext": 5,
+    "engageOnTools": [
+      "mcp__manifest__start_feature"
+    ],
+    "disengageOnTools": [
+      "mcp__manifest__complete_feature"
+    ]
   }
 }
 ```
 
 Useful options:
 
-- `startInSpecMode`: begin each session in `SPEC` instead of `RED`
-- `persistPhase`: keep the phase state in the Pi session history
+- `defaultEngaged`: if `true`, every fresh session starts with TDD engaged (legacy always-on behavior). Default `false` — sessions start dormant and only engage on `tdd_engage`, an `engageOnTools` hook, or an explicit `/tdd` phase command.
+- `startInSpecMode`: when TDD engages, begin in `SPEC` instead of `RED`
+- `engageOnTools`: list of tool names that auto-engage TDD when the agent calls them. Useful for hooking task or feature management tools (e.g., manifest's `start_feature`, a Linear `start_issue` tool) into the TDD lifecycle without relying on the agent to remember `tdd_engage`.
+- `disengageOnTools`: list of tool names that auto-disengage TDD. Pair with `engageOnTools` to close out a feature lifecycle (e.g., manifest's `complete_feature`).
+- `persistPhase`: keep the phase state in the Pi session history (engagement is intentionally not persisted across sessions; every session starts dormant)
 - `autoTransition`: allow the extension to move phases from observed test signals
 - `refactorTransition`: choose how `REFACTOR -> RED` happens; default is `"user"`
 - `judgeProvider` and `judgeModel`: use a specific model for the gate instead of the current active model

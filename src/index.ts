@@ -6,6 +6,12 @@ import { evaluateTransition, extractTestSignal } from "./transition.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { handleTddCommand } from "./commands.js";
 import { persistState, restoreState } from "./persistence.js";
+import {
+  applyLifecycleHooks,
+  createDisengageTool,
+  createEngageTool,
+  type EngagementDeps,
+} from "./engagement.js";
 import type { TDDConfig, TestSignal } from "./types.js";
 
 const STATUS_KEY = "tdd-gate";
@@ -15,7 +21,7 @@ const OUTPUT_WIDGET_KEY = "tdd-gate-command-output";
 function createInitialMachine(): PhaseStateMachine {
   return new PhaseStateMachine({
     phase: "RED",
-    enabled: true,
+    enabled: false,
   });
 }
 
@@ -33,12 +39,39 @@ export default function activate(pi: ExtensionAPI): void {
     return config;
   }
 
-  function rehydrateState(ctx: ExtensionContext): void {
+  const engagementDeps: EngagementDeps = {
+    pi,
+    machine,
+    getConfig: () => {
+      if (!config) {
+        throw new Error("TDD config not initialised; engagement tool invoked before any session event");
+      }
+      return config;
+    },
+  };
+
+  pi.registerTool(createEngageTool(engagementDeps));
+  pi.registerTool(createDisengageTool(engagementDeps));
+
+  function rehydrateState(ctx: ExtensionContext, options: { freshSession: boolean }): void {
     const nextConfig = refreshConfig(ctx);
     const saved = nextConfig.persistPhase ? restoreState(ctx) : null;
 
+    // Engagement defaults: a fresh session always starts dormant unless
+    // defaultEngaged is set, regardless of what was persisted. This makes
+    // investigation/navigation the default and only engages TDD when feature
+    // work begins. Within-session tree navigation preserves the live state.
+    const desiredEnabled = nextConfig.enabled && (
+      options.freshSession
+        ? nextConfig.defaultEngaged
+        : (saved?.enabled ?? nextConfig.defaultEngaged)
+    );
+
     if (saved) {
-      machine.restore(saved);
+      machine.restore({
+        ...saved,
+        enabled: desiredEnabled,
+      });
     } else {
       machine.restore({
         phase: nextConfig.startInSpecMode ? "SPEC" : "RED",
@@ -46,13 +79,13 @@ export default function activate(pi: ExtensionAPI): void {
         lastTestOutput: null,
         lastTestFailed: null,
         cycleCount: 0,
-        enabled: nextConfig.enabled,
+        enabled: desiredEnabled,
         plan: [],
         planCompleted: 0,
       });
     }
 
-    ctx.ui.setStatus(STATUS_KEY, machine.statusText());
+    ctx.ui.setStatus(STATUS_KEY, machine.bottomBarText());
   }
 
   function publish(ctx: ExtensionContext | ExtensionCommandContext, text: string): void {
@@ -79,12 +112,12 @@ export default function activate(pi: ExtensionAPI): void {
 
   pi.on("session_start", async (_event, ctx) => {
     pendingSignals = [];
-    rehydrateState(ctx);
+    rehydrateState(ctx, { freshSession: true });
   });
 
   pi.on("session_tree", async (_event, ctx) => {
     pendingSignals = [];
-    rehydrateState(ctx);
+    rehydrateState(ctx, { freshSession: false });
   });
 
   pi.on("before_agent_start", async (event, ctx) => {
@@ -100,6 +133,11 @@ export default function activate(pi: ExtensionAPI): void {
 
   pi.on("tool_call", async (event, ctx) => {
     const nextConfig = refreshConfig(ctx);
+    const lifecycle = applyLifecycleHooks(event.toolName, engagementDeps, ctx);
+    if (lifecycle.isControlTool) {
+      // tdd_engage / tdd_disengage are control flow, never gated.
+      return undefined;
+    }
     return gateSingleToolCall(event, machine, nextConfig, ctx);
   });
 
@@ -119,7 +157,7 @@ export default function activate(pi: ExtensionAPI): void {
     }
 
     pendingSignals = [];
-    ctx.ui.setStatus(STATUS_KEY, machine.statusText());
+    ctx.ui.setStatus(STATUS_KEY, machine.bottomBarText());
   });
 
   pi.registerCommand("tdd", {
@@ -134,6 +172,8 @@ export default function activate(pi: ExtensionAPI): void {
         "spec-set",
         "spec-show",
         "spec-done",
+        "engage",
+        "disengage",
         "off",
         "on",
         "history",
@@ -143,11 +183,11 @@ export default function activate(pi: ExtensionAPI): void {
     },
     handler: async (args, ctx: ExtensionCommandContext) => {
       const nextConfig = refreshConfig(ctx);
-      await handleTddCommand(args, machine, ctx, (text) => publish(ctx, text));
+      await handleTddCommand(args, machine, ctx, (text) => publish(ctx, text), nextConfig);
       if (nextConfig.persistPhase) {
         persistState(pi, machine);
       }
-      ctx.ui.setStatus(STATUS_KEY, machine.statusText());
+      ctx.ui.setStatus(STATUS_KEY, machine.bottomBarText());
     },
   });
 }

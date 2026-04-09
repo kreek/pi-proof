@@ -39,6 +39,24 @@ export interface TDDConfig {
   maxDiffsInContext: number;
   persistPhase: boolean;
   startInSpecMode: boolean;
+  /**
+   * If true, every fresh session starts with TDD engaged (legacy behavior).
+   * If false (default), sessions start dormant — TDD only engages when the
+   * agent calls tdd_engage, when a configured lifecycle hook fires, or when
+   * the user runs an explicit /tdd phase command.
+   */
+  defaultEngaged: boolean;
+  /**
+   * Tool names that auto-engage TDD when called. Useful for hooking task or
+   * feature management tools (e.g., manifest's start_feature) into the TDD
+   * lifecycle without requiring the agent to remember tdd_engage.
+   */
+  engageOnTools: string[];
+  /**
+   * Tool names that auto-disengage TDD when called. Pair with engageOnTools to
+   * close out a feature lifecycle (e.g., manifest's complete_feature).
+   */
+  disengageOnTools: string[];
   guidelines: GuidelinesConfig;
 }
 
