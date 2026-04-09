@@ -90,10 +90,45 @@ declare module "@mariozechner/pi-ai" {
     context: Context,
     options?: ProviderStreamOptions
   ): Promise<AssistantMessage>;
+
+  // Minimal TypeBox shim for tool parameter schemas. The real values come from
+  // @sinclair/typebox at runtime via @mariozechner/pi-ai's re-export.
+  export interface TSchema {
+    readonly [key: string]: unknown;
+  }
+  export type Static<T> = unknown;
+
+  export const Type: {
+    Object<T extends Record<string, TSchema>>(
+      properties: T,
+      options?: { description?: string }
+    ): TSchema;
+    String(options?: { description?: string; minLength?: number }): TSchema;
+    Number(options?: { description?: string }): TSchema;
+    Boolean(options?: { description?: string }): TSchema;
+    Optional<T extends TSchema>(schema: T): TSchema;
+    Union(schemas: TSchema[], options?: { description?: string }): TSchema;
+    Literal<T extends string | number | boolean>(value: T): TSchema;
+    Array<T extends TSchema>(items: T, options?: { description?: string }): TSchema;
+  };
+
+  export function StringEnum<T extends readonly string[]>(
+    values: T,
+    options?: { description?: string }
+  ): TSchema;
 }
 
 declare module "@mariozechner/pi-coding-agent" {
-  import type { AssistantMessage, Model, ToolCall, ToolResultMessage } from "@mariozechner/pi-ai";
+  import type {
+    AssistantMessage,
+    ImageContent,
+    Model,
+    Static,
+    TextContent,
+    ToolCall,
+    ToolResultMessage,
+    TSchema,
+  } from "@mariozechner/pi-ai";
 
   export interface CustomEntry<T = unknown> {
     type: "custom";
@@ -302,6 +337,48 @@ declare module "@mariozechner/pi-coding-agent" {
     handler: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
   }
 
+  // Tool registration ─────────────────────────────────────────────────────────
+
+  export interface AgentToolResult<TDetails = unknown> {
+    content: (TextContent | ImageContent)[];
+    details?: TDetails;
+  }
+
+  export type AgentToolUpdateCallback<TDetails = unknown> = (
+    partial: AgentToolResult<TDetails>
+  ) => void;
+
+  export interface ToolDefinition<
+    TParams extends TSchema = TSchema,
+    TDetails = unknown,
+    TParsedParams = Record<string, unknown>
+  > {
+    name: string;
+    label: string;
+    description: string;
+    promptSnippet?: string;
+    promptGuidelines?: string[];
+    parameters: TParams;
+    prepareArguments?: (args: unknown) => TParsedParams;
+    execute(
+      toolCallId: string,
+      params: TParsedParams,
+      signal: AbortSignal | undefined,
+      onUpdate: AgentToolUpdateCallback<TDetails> | undefined,
+      ctx: ExtensionContext
+    ): Promise<AgentToolResult<TDetails>>;
+    renderCall?: (...args: unknown[]) => unknown;
+    renderResult?: (...args: unknown[]) => unknown;
+  }
+
+  export function defineTool<
+    TParams extends TSchema,
+    TDetails = unknown,
+    TParsedParams = Record<string, unknown>
+  >(
+    tool: ToolDefinition<TParams, TDetails, TParsedParams>
+  ): ToolDefinition<TParams, TDetails, TParsedParams>;
+
   export interface ExtensionAPI {
     on(event: "session_start", handler: (event: SessionStartEvent, ctx: ExtensionContext) => Promise<void> | void): void;
     on(event: "session_tree", handler: (event: SessionTreeEvent, ctx: ExtensionContext) => Promise<void> | void): void;
@@ -316,6 +393,13 @@ declare module "@mariozechner/pi-coding-agent" {
     ): void;
     on(event: "tool_result", handler: (event: ToolResultEvent, ctx: ExtensionContext) => Promise<void> | void): void;
     on(event: "turn_end", handler: (event: TurnEndEvent, ctx: ExtensionContext) => Promise<void> | void): void;
+    registerTool<
+      TParams extends TSchema = TSchema,
+      TDetails = unknown,
+      TParsedParams = Record<string, unknown>
+    >(
+      tool: ToolDefinition<TParams, TDetails, TParsedParams>
+    ): void;
     registerCommand(name: string, options: RegisteredCommand): void;
     registerFlag(
       name: string,
