@@ -1,0 +1,72 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
+import type { GuidelinesConfig, TDDConfig } from "./types.js";
+import { resolveGuidelines } from "./guidelines.js";
+
+const DEFAULTS: Omit<TDDConfig, "guidelines"> = {
+  enabled: true,
+  judgeModel: null,
+  judgeProvider: null,
+  autoTransition: true,
+  refactorTransition: "user",
+  allowReadInAllPhases: true,
+  temperature: 0,
+  maxDiffsInContext: 5,
+  persistPhase: true,
+  startInPlanMode: false,
+};
+
+type UserConfig = Partial<Omit<TDDConfig, "guidelines">> & { guidelines?: Partial<GuidelinesConfig> };
+
+interface SettingsFileShape {
+  tddGate?: UserConfig;
+}
+
+function readJSON(path: string): SettingsFileShape | undefined {
+  if (!existsSync(path)) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as SettingsFileShape;
+  } catch (error) {
+    console.error(`[tdd-gate] Failed to parse settings file ${path}:`, error);
+    return undefined;
+  }
+}
+
+function mergeGuidelines(
+  base: Partial<GuidelinesConfig> | undefined,
+  next: Partial<GuidelinesConfig> | undefined
+): Partial<GuidelinesConfig> | undefined {
+  if (!base && !next) return undefined;
+  return { ...(base ?? {}), ...(next ?? {}) };
+}
+
+function mergeConfigLayers(
+  base: UserConfig | undefined,
+  next: UserConfig | undefined
+): UserConfig {
+  if (!base && !next) return {};
+  const merged = { ...(base ?? {}), ...(next ?? {}) };
+  merged.guidelines = mergeGuidelines(base?.guidelines, next?.guidelines);
+  return merged;
+}
+
+export function loadConfig(cwd: string): TDDConfig {
+  const globalSettings = readJSON(join(homedir(), ".pi", "agent", "settings.json"));
+  const projectSettings = readJSON(join(cwd, ".pi", "settings.json"));
+
+  const user = mergeConfigLayers(globalSettings?.tddGate, projectSettings?.tddGate);
+  const guidelines = resolveGuidelines(user.guidelines);
+  const { guidelines: _ignored, ...rest } = user;
+
+  return {
+    ...DEFAULTS,
+    ...(rest as Partial<TDDConfig>),
+    guidelines,
+  };
+}
+
+export { DEFAULTS };
