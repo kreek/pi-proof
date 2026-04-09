@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working in this repository.
 
 ## What this is
 
@@ -26,7 +26,7 @@ After `pi:install`, if Pi is already running, run `/reload` inside Pi to pick up
 
 ## Architecture
 
-`docs/architecture.md` is the canonical, in-depth tour. Read it before making non-trivial changes — the runtime flow walkthrough is worth the time. Quick mental model:
+Quick mental model:
 
 1. **`PhaseStateMachine` (`src/phase.ts`) is the only mutable state.** Phase, engagement flag, spec checklist, cycle count, last test signal, and a rolling diff buffer all live here. Pure data + logic — no Pi or LLM dependencies, so it is trivially unit-testable. Every other module reads or mutates it.
 
