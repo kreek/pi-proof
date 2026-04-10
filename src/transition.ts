@@ -1,5 +1,5 @@
 import { isBashToolResult, type ExtensionContext, type ToolResultEvent } from "@mariozechner/pi-coding-agent";
-import type { TDDConfig, TestProofLevel, TestSignal } from "./types.js";
+import type { ProofCheckpoint, TDDConfig, TestProofLevel, TestSignal } from "./types.js";
 import type { PhaseStateMachine } from "./phase.js";
 import { splitCommandArgs } from "./commands.js";
 
@@ -91,6 +91,8 @@ export async function evaluateTransition(
     machine.recordTestResult(signal.output, signal.failed, signal.command, signal.level);
   }
 
+  captureRedProofCheckpoint(machine, signals);
+
   if (!config.autoTransition) {
     return;
   }
@@ -111,10 +113,15 @@ export async function evaluateTransition(
     return;
   }
 
+  const proofBoundSignals = matchingSignalsForCurrentProof(machine, signals);
+  if (proofBoundSignals.length === 0) {
+    return;
+  }
+
   // Deterministic test-signal-driven transitions only. If signals don't yield
   // a clear answer, no transition fires — the agent advances explicitly with
   // /tdd commands or tdd_engage(phase).
-  const verdict = fallbackTransition(machine, signals, expectedNextPhase);
+  const verdict = fallbackTransition(machine, proofBoundSignals, expectedNextPhase);
   if (!verdict.transition || verdict.transition !== expectedNextPhase) {
     return;
   }
@@ -257,6 +264,113 @@ export function inferTestProofLevel(command: string): TestProofLevel {
     return "unit";
   }
   return "unknown";
+}
+
+function captureRedProofCheckpoint(machine: PhaseStateMachine, signals: TestSignal[]): void {
+  if (machine.phase !== "RED" || machine.proofCheckpoint) {
+    return;
+  }
+
+  const failedSignal = signals.find((signal) => signal.failed);
+  if (!failedSignal) {
+    return;
+  }
+
+  machine.captureProofCheckpoint(failedSignal, inferTestCommandFamily(failedSignal.command));
+}
+
+function matchingSignalsForCurrentProof(
+  machine: PhaseStateMachine,
+  signals: TestSignal[]
+): TestSignal[] {
+  const checkpoint = machine.proofCheckpoint;
+  if (!checkpoint) {
+    return signals;
+  }
+
+  return signals.filter((signal) => signalMatchesProofCheckpoint(signal, checkpoint));
+}
+
+function signalMatchesProofCheckpoint(signal: TestSignal, checkpoint: ProofCheckpoint): boolean {
+  if (!commandFamiliesMatch(inferTestCommandFamily(signal.command), checkpoint.commandFamily)) {
+    return false;
+  }
+
+  return proofLevelsMatch(signal.level, checkpoint.level);
+}
+
+function proofLevelsMatch(left: TestProofLevel, right: TestProofLevel): boolean {
+  return left === "unknown" || right === "unknown" || left === right;
+}
+
+function commandFamiliesMatch(left: string, right: string): boolean {
+  return left === right || familyIsBroaderMatch(left, right) || familyIsBroaderMatch(right, left);
+}
+
+function familyIsBroaderMatch(base: string, candidate: string): boolean {
+  return !base.startsWith("script:") && candidate.startsWith(`${base}:`);
+}
+
+function inferTestCommandFamily(command: string): string {
+  const clause = splitCommandClauses(command).find((part) => isTestCommandClause(part.text));
+  if (!clause) {
+    return commandName(command);
+  }
+
+  return inferClauseTestFamily(clause.text);
+}
+
+function inferClauseTestFamily(clause: string): string {
+  const tokens = splitCommandArgs(clause);
+  if (tokens.length === 0) {
+    return "unknown";
+  }
+
+  const [firstRaw, secondRaw, thirdRaw] = tokens;
+  const first = commandName(firstRaw);
+  const second = secondRaw?.toLowerCase();
+  const third = thirdRaw?.toLowerCase();
+
+  if (BARE_TEST_BINARIES.has(first)) {
+    return first;
+  }
+  if (first === "npx" && secondRaw) {
+    return commandName(secondRaw);
+  }
+  if (first === "cargo" || first === "go" || first === "deno" || first === "zig") {
+    return `${first}:${second ?? "test"}`;
+  }
+  if (first === "make") {
+    return `make:${second ?? "test"}`;
+  }
+  if (first === "blc") {
+    return `blc:${second ?? "test"}`;
+  }
+  if (first === "npm" || first === "pnpm" || first === "yarn" || first === "bun") {
+    return inferPackageManagerTestFamily(first, second, third);
+  }
+  if (SHELL_WRAPPERS.has(first) && secondRaw) {
+    return inferClauseTestFamily(secondRaw);
+  }
+  if (looksLikeTestScript(firstRaw)) {
+    return `script:${commandName(firstRaw)}`;
+  }
+
+  return first;
+}
+
+function inferPackageManagerTestFamily(
+  runner: string,
+  second: string | undefined,
+  third: string | undefined
+): string {
+  if (second === "test") {
+    return `${runner}:test`;
+  }
+  if (second === "run" && third?.startsWith("test")) {
+    return `${runner}:${third}`;
+  }
+  return runner;
 }
 
 function looksLikeTestScript(token: string): boolean {

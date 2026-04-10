@@ -5,6 +5,7 @@ import { isTestCommand } from "./transition.js";
 
 const READ_ONLY_TOOLS = new Set(["read", "grep", "find", "ls"]);
 const BUILTIN_MUTATING_TOOLS = new Set(["write", "edit", "bash"]);
+const MAX_DIFFS = 5;
 
 /**
  * The gate enforces exactly one deterministic rule: SPEC blocks file mutations
@@ -26,12 +27,12 @@ export async function gateSingleToolCall(
     return undefined;
   }
 
-  if (config.allowReadInAllPhases && READ_ONLY_TOOLS.has(event.toolName)) {
+  if (READ_ONLY_TOOLS.has(event.toolName)) {
     return undefined;
   }
 
   if (isToolCallEventType("bash", event) && machine.phase !== "SPEC" && isTestCommand(event.input.command)) {
-    machine.addDiff(summarizeDiff(event), config.maxDiffsInContext);
+    trackToolCall(machine, event);
     return undefined;
   }
 
@@ -40,14 +41,14 @@ export async function gateSingleToolCall(
     if (blocked) {
       return blocked;
     }
-    machine.addDiff(summarizeDiff(event), config.maxDiffsInContext);
+    trackToolCall(machine, event);
     return undefined;
   }
 
   // RED / GREEN / REFACTOR: passthrough. Just record the diff for review
   // context. The system prompt steers the agent and the test signal drives
   // phase transitions — no LLM judging here.
-  machine.addDiff(summarizeDiff(event), config.maxDiffsInContext);
+  trackToolCall(machine, event);
   return undefined;
 }
 
@@ -101,4 +102,18 @@ function summarizeDiff(event: ToolCallEvent): string {
 
 function truncate(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max)}...` : value;
+}
+
+function trackToolCall(machine: PhaseStateMachine, event: ToolCallEvent): void {
+  machine.addDiff(summarizeDiff(event), MAX_DIFFS);
+  if (!BUILTIN_MUTATING_TOOLS.has(event.toolName)) {
+    return;
+  }
+
+  const input = event.input as Record<string, unknown>;
+  machine.recordMutation(
+    event.toolName,
+    typeof input.path === "string" ? input.path : undefined,
+    typeof input.command === "string" ? input.command : undefined
+  );
 }

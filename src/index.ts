@@ -58,17 +58,11 @@ export default function activate(pi: ExtensionAPI): void {
 
   function rehydrateState(ctx: ExtensionContext, options: { freshSession: boolean }): void {
     const nextConfig = refreshConfig(ctx);
-    const saved = nextConfig.persistPhase ? restoreState(ctx) : null;
+    const saved = restoreState(ctx);
 
-    // Engagement defaults: a fresh session always starts dormant unless
-    // defaultEngaged is set, regardless of what was persisted. This makes
-    // investigation/navigation the default and only engages TDD when feature
-    // work begins. Within-session tree navigation preserves the live state.
-    const desiredEnabled = nextConfig.enabled && (
-      options.freshSession
-        ? nextConfig.defaultEngaged
-        : (saved?.enabled ?? nextConfig.defaultEngaged)
-    );
+    // Fresh sessions always start dormant. Within-session tree navigation
+    // preserves the live engagement state from the saved branch.
+    const desiredEnabled = nextConfig.enabled && !options.freshSession && (saved?.enabled ?? false);
 
     if (saved) {
       machine.restore({
@@ -77,13 +71,15 @@ export default function activate(pi: ExtensionAPI): void {
       });
     } else {
       machine.restore({
-        phase: nextConfig.startInSpecMode ? "SPEC" : "RED",
+        phase: "RED",
         diffs: [],
+        mutations: [],
         lastTestOutput: null,
         lastTestFailed: null,
         recentTests: [],
+        proofCheckpoint: null,
         cycleCount: 0,
-        enabled: desiredEnabled,
+        enabled: false,
         plan: [],
         planCompleted: 0,
       });
@@ -156,10 +152,7 @@ export default function activate(pi: ExtensionAPI): void {
     const nextConfig = refreshConfig(ctx);
     await evaluateTransition(pendingSignals, machine, nextConfig, ctx);
 
-    if (nextConfig.persistPhase) {
-      persistState(pi, machine);
-    }
-
+    persistState(pi, machine);
     pendingSignals = [];
     ctx.ui.setStatus(STATUS_KEY, machine.bottomBarText());
   });
@@ -190,9 +183,7 @@ export default function activate(pi: ExtensionAPI): void {
     handler: async (args, ctx: ExtensionCommandContext) => {
       const nextConfig = refreshConfig(ctx);
       await handleTddCommand(args, machine, ctx, (text) => publish(ctx, text), nextConfig);
-      if (nextConfig.persistPhase) {
-        persistState(pi, machine);
-      }
+      persistState(pi, machine);
       ctx.ui.setStatus(STATUS_KEY, machine.bottomBarText());
     },
   });

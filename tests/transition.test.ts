@@ -162,7 +162,25 @@ describe("fallbackTransition", () => {
 });
 
 describe("evaluateTransition", () => {
-  it("records the last test result even when auto-transition is disabled", async () => {
+  it("records the last test result while auto-transitioning", async () => {
+    const machine = new PhaseStateMachine({ enabled: true, phase: "GREEN" });
+
+    await evaluateTransition(
+      [{ command: "npm test", output: "1 passed", failed: false, level: "unknown" }],
+      machine,
+      makeConfig(),
+      makeContext()
+    );
+
+    expect(machine.phase).toBe("REFACTOR");
+    expect(machine.lastTestFailed).toBe(false);
+    expect(machine.lastTestOutput).toBe("1 passed");
+    expect(machine.getSnapshot().recentTests).toEqual([
+      { command: "npm test", output: "1 passed", failed: false, level: "unknown" },
+    ]);
+  });
+
+  it("records the last test result without transitioning when auto-transition is disabled", async () => {
     const machine = new PhaseStateMachine({ enabled: true, phase: "GREEN" });
 
     await evaluateTransition(
@@ -175,8 +193,66 @@ describe("evaluateTransition", () => {
     expect(machine.phase).toBe("GREEN");
     expect(machine.lastTestFailed).toBe(false);
     expect(machine.lastTestOutput).toBe("1 passed");
-    expect(machine.getSnapshot().recentTests).toEqual([
-      { command: "npm test", output: "1 passed", failed: false, level: "unknown" },
-    ]);
+  });
+
+  it("captures the first failing RED test as the proof checkpoint", async () => {
+    const machine = new PhaseStateMachine({
+      enabled: true,
+      phase: "RED",
+      plan: ["persist settings through the HTTP API"],
+    });
+    machine.recordMutation("edit", "tests/http/settings.integration.test.ts");
+
+    await evaluateTransition(
+      [{ command: "npm run test:integration", output: "1 failed", failed: true, level: "integration" }],
+      machine,
+      makeConfig(),
+      makeContext()
+    );
+
+    expect(machine.phase).toBe("GREEN");
+    expect(machine.getSnapshot().proofCheckpoint).toEqual({
+      itemIndex: 1,
+      item: "persist settings through the HTTP API",
+      command: "npm run test:integration",
+      commandFamily: "npm:test:integration",
+      level: "integration",
+      testFiles: ["tests/http/settings.integration.test.ts"],
+      mutationCountAtCapture: 1,
+    });
+  });
+
+  it("keeps GREEN focused on the active proof target", async () => {
+    const machine = new PhaseStateMachine({
+      enabled: true,
+      phase: "GREEN",
+      proofCheckpoint: {
+        itemIndex: 1,
+        item: "persist settings through the HTTP API",
+        command: "npm test",
+        commandFamily: "npm:test",
+        level: "unknown",
+        testFiles: [],
+        mutationCountAtCapture: 0,
+      },
+    });
+
+    await evaluateTransition(
+      [{ command: "pnpm run test:integration", output: "1 passed", failed: false, level: "integration" }],
+      machine,
+      makeConfig(),
+      makeContext()
+    );
+
+    expect(machine.phase).toBe("GREEN");
+
+    await evaluateTransition(
+      [{ command: "npm run test:unit", output: "1 passed", failed: false, level: "unit" }],
+      machine,
+      makeConfig(),
+      makeContext()
+    );
+
+    expect(machine.phase).toBe("REFACTOR");
   });
 });

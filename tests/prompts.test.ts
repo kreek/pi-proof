@@ -88,14 +88,6 @@ describe("prompts", () => {
       reviewModel: null,
       reviewProvider: null,
       reviewModels: {},
-      autoTransition: true,
-      refactorTransition: "user",
-      allowReadInAllPhases: true,
-      temperature: 0,
-      maxDiffsInContext: 5,
-      persistPhase: false,
-      startInSpecMode: false,
-      defaultEngaged: false,
       runPreflightOnRed: true,
       engageOnTools: [],
       disengageOnTools: [],
@@ -113,6 +105,9 @@ describe("prompts", () => {
   it("keeps the built-in prompt markdown focused on TDD workflow instead of coding style", () => {
     expect(loadPrompt("guidelines-green")).toContain("Implement only the behavior required to make the current failing test pass.");
     expect(loadPrompt("guidelines-red")).toContain("Use unit tests for isolated logic and integration tests for boundaries, contracts, or wiring.");
+    expect(loadPrompt("guidelines-red")).toContain("define the proof target for this cycle");
+    expect(loadPrompt("guidelines-green")).toContain("Drive the active proof target to green");
+    expect(loadPrompt("guidelines-refactor")).toContain("Start a fresh RED cycle when the proving test needs a material behavior change.");
     expect(loadPrompt("guidelines-spec")).toContain("unit test, an integration test, or both");
     expect(loadPrompt("guidelines-green")).not.toContain("Favor pure functions");
     expect(loadPrompt("guidelines-green")).not.toContain("Functions: 25-30 lines max");
@@ -127,14 +122,6 @@ describe("prompts", () => {
       reviewModel: null,
       reviewProvider: null,
       reviewModels: {},
-      autoTransition: true,
-      refactorTransition: "user",
-      allowReadInAllPhases: true,
-      temperature: 0,
-      maxDiffsInContext: 5,
-      persistPhase: false,
-      startInSpecMode: false,
-      defaultEngaged: false,
       runPreflightOnRed: true,
       engageOnTools: [],
       disengageOnTools: [],
@@ -150,9 +137,40 @@ describe("prompts", () => {
 
     expect(postflight).toContain("delivered what its spec asked for and fits the project it was added to");
     expect(postflight).toContain("The proving tests are at the right level for the behavior");
+    expect(postflight).toContain("The proof target for the cycle went from red to green");
     expect(postflight).toContain("aligns with the repository's documented instructions, established code patterns, and chosen tech stack");
     expect(postflight).toContain("When the cycle is complete, return `ok: true`");
     expect(postflight).not.toContain("NOT to police whether the implementation was minimal");
+  });
+
+  it("surfaces the active proof target in the system prompt once RED has established it", () => {
+    const machine = new PhaseStateMachine({
+      enabled: true,
+      phase: "GREEN",
+      plan: ["persist settings through the HTTP API"],
+      proofCheckpoint: {
+        itemIndex: 1,
+        item: "persist settings through the HTTP API",
+        command: "npm run test:integration",
+        commandFamily: "npm:test:integration",
+        level: "integration",
+        testFiles: ["tests/http/settings.integration.test.ts"],
+        mutationCountAtCapture: 1,
+      },
+    });
+    const prompt = buildSystemPrompt(machine, {
+      enabled: true,
+      reviewModel: null,
+      reviewProvider: null,
+      reviewModels: {},
+      runPreflightOnRed: true,
+      engageOnTools: [],
+      disengageOnTools: [],
+      guidelines: resolveGuidelines({}),
+    });
+
+    expect(prompt).toContain("Active proof target: Spec item 1 | INTEGRATION | npm run test:integration");
+    expect(prompt).toContain("Drive the active proof target to green before chasing unrelated test output.");
   });
 
   it("teaches preflight to reason about proof level", () => {

@@ -47,7 +47,7 @@ export async function runReview(
       apiKey: auth.apiKey,
       headers: auth.headers,
       signal: ctx.signal,
-      temperature: config.temperature,
+      temperature: 0,
     }
   );
 

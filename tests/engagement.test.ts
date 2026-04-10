@@ -19,14 +19,6 @@ function makeConfig(overrides: Partial<TDDConfig> = {}): TDDConfig {
     reviewModel: null,
     reviewProvider: null,
     reviewModels: {},
-    autoTransition: true,
-    refactorTransition: "user",
-    allowReadInAllPhases: true,
-    temperature: 0,
-    maxDiffsInContext: 5,
-    persistPhase: false,
-    startInSpecMode: false,
-    defaultEngaged: false,
     runPreflightOnRed: true,
     engageOnTools: [],
     disengageOnTools: [],
@@ -126,16 +118,6 @@ describe("applyLifecycleHooks", () => {
     expect(result.engaged).toBeUndefined();
     expect(machine.enabled).toBe(false);
     expect(machine.getHistory()).toHaveLength(0);
-  });
-
-  it("uses SPEC when startInSpecMode is true", async () => {
-    const machine = new PhaseStateMachine();
-    const config = makeConfig({
-      engageOnTools: ["start_feature"],
-      startInSpecMode: true,
-    });
-    await applyLifecycleHooks("start_feature", makeDeps(machine, config), makeContext());
-    expect(machine.phase).toBe("SPEC");
   });
 
   it("disengages TDD when a configured disengageOnTools tool is called", async () => {

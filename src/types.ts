@@ -8,12 +8,34 @@ export interface TestSignal {
   level: TestProofLevel;
 }
 
+export interface ProofCheckpoint {
+  /** 1-based spec item position being proven, or null when no checklist item is active. */
+  itemIndex: number | null;
+  item: string | null;
+  command: string;
+  commandFamily: string;
+  level: TestProofLevel;
+  /** Test files touched before the proving failure was first observed in RED. */
+  testFiles: string[];
+  /** Mutation count at the moment the checkpoint was captured. */
+  mutationCountAtCapture: number;
+}
+
+export interface MutationRecord {
+  toolName: string;
+  phase: TDDPhase;
+  path?: string;
+  command?: string;
+}
+
 export interface PhaseState {
   phase: TDDPhase;
   diffs: string[];
+  mutations: MutationRecord[];
   lastTestOutput: string | null;
   lastTestFailed: boolean | null;
   recentTests: TestSignal[];
+  proofCheckpoint: ProofCheckpoint | null;
   cycleCount: number;
   enabled: boolean;
   plan: string[];

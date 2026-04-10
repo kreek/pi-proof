@@ -61,11 +61,8 @@ function normalizePhase(value: string | undefined): TDDPhase | null {
   return null;
 }
 
-function persistIfEnabled(deps: EngagementDeps): void {
-  const config = deps.getConfig();
-  if (config.persistPhase) {
-    persistState(deps.pi, deps.machine);
-  }
+function persist(deps: EngagementDeps): void {
+  persistState(deps.pi, deps.machine);
 }
 
 export interface PostflightOnDisengageOutcome {
@@ -259,11 +256,10 @@ export async function applyLifecycleHooks(
   }
 
   if (config.engageOnTools.includes(toolName) && !machine.enabled) {
-    const targetPhase = config.startInSpecMode ? "SPEC" : "RED";
     const result = await engageMachine(
       deps,
       ctx,
-      targetPhase,
+      "RED",
       `lifecycle hook: ${toolName}`,
       `lifecycle hook: ${toolName}`,
       { viaToolName: toolName }
@@ -319,7 +315,7 @@ async function engageMachine(
     machine.transitionTo(phase, transitionReason, true);
   }
 
-  persistIfEnabled(deps);
+  persist(deps);
   ctx.ui.setStatus(STATUS_KEY, machine.bottomBarText());
   notifyEngaged(ctx, wasEnabled, phase, reason, options?.viaToolName);
 
@@ -369,7 +365,7 @@ async function disengageMachine(
     await maybeRunPostflightOnDisengage(machine, ctx, config);
 
   machine.enabled = false;
-  persistIfEnabled(deps);
+  persist(deps);
   ctx.ui.setStatus(STATUS_KEY, machine.bottomBarText());
   if (ctx.hasUI && wasEnabled) {
     ctx.ui.notify(`TDD disengaged: ${reason}`, "info");

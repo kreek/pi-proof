@@ -23,7 +23,6 @@ const DEFAULTS: Omit<TDDConfig, "guidelines"> = {
 };
 
 type UserConfig = Partial<Omit<TDDConfig, "guidelines">> & {
-  startInPlanMode?: boolean;
   /** Deprecated alias for reviewProvider. */
   judgeProvider?: string | null;
   /** Deprecated alias for reviewModel. */
@@ -81,12 +80,10 @@ export function loadConfig(cwd: string): TDDConfig {
 
   const user = mergeConfigLayers(globalSettings?.tddGate, projectSettings?.tddGate);
   const guidelines = resolveGuidelines(user.guidelines);
-  const startInSpecMode = user.startInSpecMode ?? user.startInPlanMode;
   const reviewProvider = user.reviewProvider ?? user.judgeProvider;
   const reviewModel = user.reviewModel ?? user.judgeModel;
   const {
     guidelines: _ignoredGuidelines,
-    startInPlanMode: _ignoredStartInPlanMode,
     judgeProvider: _ignoredJudgeProvider,
     judgeModel: _ignoredJudgeModel,
     ...rest
@@ -95,7 +92,6 @@ export function loadConfig(cwd: string): TDDConfig {
   return {
     ...DEFAULTS,
     ...(rest as Partial<TDDConfig>),
-    startInSpecMode: startInSpecMode ?? DEFAULTS.startInSpecMode,
     reviewProvider: reviewProvider ?? DEFAULTS.reviewProvider,
     reviewModel: reviewModel ?? DEFAULTS.reviewModel,
     guidelines,

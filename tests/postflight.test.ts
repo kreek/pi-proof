@@ -15,14 +15,6 @@ function makeConfig(overrides: Partial<TDDConfig> = {}): TDDConfig {
     reviewModel: null,
     reviewProvider: null,
     reviewModels: {},
-    autoTransition: true,
-    refactorTransition: "user",
-    allowReadInAllPhases: true,
-    temperature: 0,
-    maxDiffsInContext: 5,
-    persistPhase: false,
-    startInSpecMode: false,
-    defaultEngaged: false,
     runPreflightOnRed: true,
     engageOnTools: [],
     disengageOnTools: [],
@@ -89,8 +81,18 @@ describe("runPostflight early-return paths", () => {
 
 describe("buildPostflightUserPrompt", () => {
   it("includes recent test history with proof levels", () => {
-    const machine = new PhaseStateMachine({ enabled: true, phase: "REFACTOR" });
-    machine.recordTestResult("1 failed", true, "npm run test:unit", "unit");
+    const machine = new PhaseStateMachine({
+      enabled: true,
+      phase: "REFACTOR",
+      plan: ["persist settings through the HTTP API"],
+    });
+    machine.recordMutation("edit", "tests/http/settings.integration.test.ts");
+    machine.recordTestResult("1 failed", true, "npm run test:integration", "integration");
+    machine.captureProofCheckpoint(
+      { command: "npm run test:integration", output: "1 failed", failed: true, level: "integration" },
+      "npm:test:integration"
+    );
+    machine.recordMutation("edit", "tests/http/settings.integration.test.ts");
     machine.recordTestResult("1 passed", false, "npm run test:integration", "integration");
 
     const prompt = buildPostflightUserPrompt({
@@ -98,8 +100,13 @@ describe("buildPostflightUserPrompt", () => {
       userStory: "persist settings through the HTTP API",
     });
 
+    expect(prompt).toContain("Proof checkpoint for this cycle:");
+    expect(prompt).toContain("Spec item: 1. persist settings through the HTTP API");
+    expect(prompt).toContain("Captured in RED by: FAIL | INTEGRATION | npm run test:integration");
+    expect(prompt).toContain("Checkpoint test files:");
+    expect(prompt).toContain("tests/http/settings.integration.test.ts");
+    expect(prompt).toContain("Proof files changed after checkpoint:");
     expect(prompt).toContain("Recent test runs captured in this cycle:");
-    expect(prompt).toContain("FAIL | UNIT | npm run test:unit");
     expect(prompt).toContain("PASS | INTEGRATION | npm run test:integration");
     expect(prompt).toContain("right level");
   });
