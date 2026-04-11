@@ -4,11 +4,17 @@
 	"description": "TDD extension for Pi \u2014 enforces red-green-refactor sequencing",
 	"type": "module",
 	"pi": {
-		"extensions": ["./index.ts"]
+		"extensions": ["./src/index.ts"]
 	},
 	"scripts": {
 		"install-ext": "mkdir -p ~/.pi/agent/extensions && ln -sfn \"$(pwd)\" ~/.pi/agent/extensions/pi-tdd && echo 'Installed to ~/.pi/agent/extensions/pi-tdd — run /reload in Pi to activate'",
 		"uninstall-ext": "rm -f ~/.pi/agent/extensions/pi-tdd && echo 'Uninstalled'"
+	},
+	"scripts": {
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"vitest": "^3.2.1"
 	},
 	"peerDependencies": {
 		"@mariozechner/pi-coding-agent": "*",

@@ -11,83 +11,9 @@ import { Type } from "@sinclair/typebox";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+import { type TestSummary, parseTestOutput, formatDuration } from "./parsers.js";
+
 type Phase = "off" | "specifying" | "implementing" | "refactoring";
-
-interface TestResult {
-	name: string;
-	passed: boolean;
-}
-
-interface TestSummary {
-	tests: TestResult[];
-	passed: number;
-	failed: number;
-	duration?: string;
-}
-
-// -- Test output parsing ------------------------------------------------------
-
-const ANSI_RE = /\x1b\[[0-9;]*m/g;
-const stripAnsi = (s: string) => s.replace(ANSI_RE, "");
-
-function parseTestOutput(raw: string): TestSummary {
-	const lines = raw.split("\n").map(stripAnsi);
-	const tests: TestResult[] = [];
-
-	for (const line of lines) {
-		const t = line.trim();
-		let m;
-
-		// Jest/Vitest: ✓ name (Xms) or ✗ name
-		if ((m = t.match(/^[✓✔√]\s+(.+?)(?:\s+\(\d+\s*m?s\))?$/))) {
-			tests.push({ name: m[1], passed: true });
-		} else if ((m = t.match(/^[✗✕×]\s+(.+?)(?:\s+\(\d+\s*m?s\))?$/))) {
-			tests.push({ name: m[1], passed: false });
-		}
-		// Go: --- PASS: TestName (0.00s) / --- FAIL: TestName
-		else if ((m = t.match(/^---\s+(PASS|FAIL):\s+(\S+)/))) {
-			tests.push({ name: m[2], passed: m[1] === "PASS" });
-		}
-		// pytest: path::test_name PASSED/FAILED
-		else if ((m = t.match(/^(\S+::\S+)\s+(PASSED|FAILED)/))) {
-			tests.push({ name: m[1], passed: m[2] === "PASSED" });
-		}
-		// Cargo: test name ... ok/FAILED
-		else if ((m = t.match(/^test\s+(\S+)\s+\.\.\.\s+(ok|FAILED)/))) {
-			tests.push({ name: m[1], passed: m[2] === "ok" });
-		}
-		// TAP: ok N - desc / not ok N - desc
-		else if ((m = t.match(/^(not )?ok\s+\d+\s*-?\s*(.+)/))) {
-			tests.push({ name: m[2].trim(), passed: !m[1] });
-		}
-	}
-
-	// Summary counts: prefer parsed tests, fall back to regex on output
-	const full = lines.join("\n");
-	let passed = tests.filter((t) => t.passed).length;
-	let failed = tests.filter((t) => !t.passed).length;
-
-	if (tests.length === 0) {
-		const pm = full.match(/(\d+)\s+pass(?:ed|ing)?/i);
-		const fm = full.match(/(\d+)\s+fail(?:ed|ing|ures?)?/i);
-		if (pm) passed = parseInt(pm[1]);
-		if (fm) failed = parseInt(fm[1]);
-	}
-
-	// Duration
-	let duration: string | undefined;
-	const dm =
-		full.match(/in\s+([\d.]+\s*m?s)/i) ||
-		full.match(/Time:\s*([\d.]+\s*m?s)/i) ||
-		full.match(/Duration\s+([\d.]+\s*m?s)/i);
-	if (dm) duration = dm[1];
-
-	return { tests, passed, failed, duration };
-}
-
-function formatDuration(ms: number): string {
-	return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
-}
 
 // -- File classification ------------------------------------------------------
 
@@ -406,7 +332,8 @@ export default function tddExtension(pi: ExtensionAPI) {
 		const testOrg = [
 			"TEST ORGANIZATION:",
 			"- One test file per module or unit under test. Split when a file covers a distinct area of behavior.",
-			"- Top-level group (describe/suite) names the unit. Nest context groups for different scenarios (e.g. 'when input is negative', 'with no arguments').",
+			"- Top-level group names the unit. Nest sub-groups for distinct scenarios. Keep different behaviors in separate groups rather than combining them into one parameterized block. (e.g. Vitest/Jest: nested describe(); Go: t.Run() subtests; pytest: classes; Rust: mod tests with sub-mods.)",
+			"- Use parameterized/table-driven tests for variations of the SAME behavior (e.g. multiple input-output pairs). Use separate groups for DIFFERENT behaviors (e.g. valid input vs error handling vs edge cases).",
 			"- Each test describes the expected outcome, not the setup. Prefer 'returns 0 for empty list' over 'test empty list'.",
 			"- Add to an existing test file when the new test covers the same unit. Create a new file when it covers a different one.",
 			"- Test YOUR business logic, not library/framework behavior. If a dependency is already tested independently, don't re-prove it. Assert what your code does with the result, not that the library works.",
