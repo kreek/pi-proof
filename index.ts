@@ -199,9 +199,10 @@ export default function tddExtension(pi: ExtensionAPI) {
 				if (snap.summary.duration) parts.push(theme.fg("dim", snap.summary.duration));
 				if (parts.length > 0) lines.push("  " + parts.join(theme.fg("dim", " | ")));
 
-				// Individual test lines
+				// Individual test lines — failures first
 				const maxTests = 7;
-				const shown = snap.summary.tests.slice(0, maxTests);
+				const sorted = [...snap.summary.tests].sort((a, b) => Number(a.passed) - Number(b.passed));
+				const shown = sorted.slice(0, maxTests);
 				for (const t of shown) {
 					const icon = t.passed ? theme.fg("success", "\u2714") : theme.fg("error", "\u2717");
 					const name = truncateToWidth(t.name, maxName);
