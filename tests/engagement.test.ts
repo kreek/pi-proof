@@ -144,7 +144,7 @@ describe("applyLifecycleHooks", () => {
       makeDeps(machine, config),
       makeContext()
     );
-    expect(result.engaged).toBe(true);
+    expect(result.started).toBe(true);
     expect(machine.enabled).toBe(true);
     expect(machine.phase).toBe("RED");
   });
@@ -158,7 +158,7 @@ describe("applyLifecycleHooks", () => {
       makeContext()
     );
 
-    expect(result.engaged).toBeUndefined();
+    expect(result.started).toBeUndefined();
     expect(machine.enabled).toBe(false);
     expect(machine.getHistory()).toHaveLength(0);
   });
@@ -176,7 +176,7 @@ describe("applyLifecycleHooks", () => {
       makeContext({ cwd: emptyProject })
     );
 
-    expect(result.engaged).toBeUndefined();
+    expect(result.started).toBeUndefined();
     expect(machine.enabled).toBe(false);
   });
 
@@ -198,7 +198,7 @@ describe("applyLifecycleHooks", () => {
       makeContext({ cwd: project })
     );
 
-    expect(result.engaged).toBeUndefined();
+    expect(result.started).toBeUndefined();
     expect(machine.enabled).toBe(false);
   });
 
@@ -213,7 +213,7 @@ describe("applyLifecycleHooks", () => {
       makeDeps(machine, config),
       makeContext()
     );
-    expect(result.disengaged).toBe(true);
+    expect(result.ended).toBe(true);
     expect(machine.enabled).toBe(false);
   });
 
@@ -231,7 +231,7 @@ describe("applyLifecycleHooks", () => {
       makeContext({ hasUI: true, ui: { notify: vi.fn(), setStatus: vi.fn() } })
     );
 
-    expect(result.disengaged).toBe(true);
+    expect(result.ended).toBe(true);
     expect(machine.enabled).toBe(false);
   });
 
@@ -239,8 +239,8 @@ describe("applyLifecycleHooks", () => {
     const machine = new PhaseStateMachine();
     const result = await applyLifecycleHooks("bash", makeDeps(machine, makeConfig()), makeContext());
     expect(result.isControlTool).toBe(false);
-    expect(result.engaged).toBeUndefined();
-    expect(result.disengaged).toBeUndefined();
+    expect(result.started).toBeUndefined();
+    expect(result.ended).toBeUndefined();
     expect(machine.enabled).toBe(false);
   });
 
@@ -248,7 +248,7 @@ describe("applyLifecycleHooks", () => {
     const machine = new PhaseStateMachine({ enabled: true, phase: "REFACTOR" });
     const config = makeConfig({ startOnTools: ["start_feature"] });
     const result = await applyLifecycleHooks("start_feature", makeDeps(machine, config), makeContext());
-    expect(result.engaged).toBeUndefined();
+    expect(result.started).toBeUndefined();
     expect(machine.phase).toBe("REFACTOR");
   });
 
@@ -259,7 +259,7 @@ describe("applyLifecycleHooks", () => {
       startOnTools: ["start_feature"],
     });
     const result = await applyLifecycleHooks("start_feature", makeDeps(machine, config), makeContext());
-    expect(result.engaged).toBeUndefined();
+    expect(result.started).toBeUndefined();
     expect(machine.enabled).toBe(false);
   });
 });
@@ -279,7 +279,7 @@ describe("createStartTool", () => {
 
     expect(machine.enabled).toBe(true);
     expect(machine.phase).toBe("SPEC");
-    expect(result.details).toMatchObject({ engaged: true, phase: "SPEC" });
+    expect(result.details).toMatchObject({ started: true, phase: "SPEC" });
   });
 
   it("honours an explicit RED phase", async () => {
@@ -341,7 +341,7 @@ describe("createStartTool", () => {
       "Pagination returns the correct items for the requested page.",
       "Pagination reports whether a next page exists.",
     ]);
-    expect(result.details).toMatchObject({ engaged: true, phase: "RED" });
+    expect(result.details).toMatchObject({ started: true, phase: "RED" });
   });
 
   it("blocks RED start with clarification questions when the reason is still ambiguous", async () => {
@@ -369,7 +369,7 @@ describe("createStartTool", () => {
 
     expect(machine.enabled).toBe(false);
     expect(machine.getHistory()).toHaveLength(0);
-    expect(result.details).toMatchObject({ engaged: false, phase: "RED" });
+    expect(result.details).toMatchObject({ started: false, phase: "RED" });
     expect(result.content[0]?.text).toContain("Ask the user:");
     expect(result.content[0]?.text).toContain("What concrete behavior is broken or missing in pagination?");
   });
@@ -388,7 +388,7 @@ describe("createStartTool", () => {
 
     expect(machine.enabled).toBe(false);
     expect(machine.phase).toBe("RED");
-    expect(result.details).toMatchObject({ engaged: false, phase: null });
+    expect(result.details).toMatchObject({ started: false, phase: null });
   });
 
   it("stays dormant for project scaffolding before a test harness exists", async () => {
@@ -405,7 +405,7 @@ describe("createStartTool", () => {
 
     expect(machine.enabled).toBe(false);
     expect(machine.phase).toBe("RED");
-    expect(result.details).toMatchObject({ engaged: false, phase: null });
+    expect(result.details).toMatchObject({ started: false, phase: null });
     expect(result.content[0]?.text).toContain("project can host a failing test");
   });
 
@@ -427,14 +427,14 @@ describe("createStartTool", () => {
     );
 
     expect(machine.enabled).toBe(false);
-    expect(result.details).toMatchObject({ engaged: false, phase: null });
+    expect(result.details).toMatchObject({ started: false, phase: null });
     expect(result.content[0]?.text).toContain("runnable test harness");
     expect(result.content[0]?.text).toContain("call tdd_start again");
   });
 });
 
 describe("createEndTool", () => {
-  it("disengages an engaged machine", async () => {
+  it("ends a started machine", async () => {
     const machine = new PhaseStateMachine({ enabled: true, phase: "GREEN" });
     const tool = createEndTool(makeDeps(machine, makeConfig()));
 
@@ -447,7 +447,7 @@ describe("createEndTool", () => {
     );
 
     expect(machine.enabled).toBe(false);
-    expect(result.details).toMatchObject({ engaged: false });
+    expect(result.details).toMatchObject({ started: false });
   });
 
   it("disengages cleanly when postflight succeeds", async () => {
@@ -508,7 +508,7 @@ describe("createEndTool", () => {
     );
 
     expect(machine.enabled).toBe(false);
-    expect(result.details).toMatchObject({ engaged: false, phase: null });
+    expect(result.details).toMatchObject({ started: false, phase: null });
   });
 });
 

@@ -16,10 +16,10 @@ function makeConfig(overrides: Partial<TDDConfig> = {}): TDDConfig {
     maxDiffsInContext: 5,
     persistPhase: false,
     startInSpecMode: false,
-    defaultEngaged: false,
+    defaultStarted: false,
     runPreflightOnRed: true,
-    engageOnTools: [],
-    disengageOnTools: [],
+    startOnTools: [],
+    endOnTools: [],
     guidelines: resolveGuidelines({}),
     ...overrides,
   };

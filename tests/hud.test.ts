@@ -15,10 +15,10 @@ function makeConfig(overrides: Partial<TDDConfig> = {}): TDDConfig {
     maxDiffsInContext: 5,
     persistPhase: true,
     startInSpecMode: false,
-    defaultEngaged: false,
+    defaultStarted: false,
     runPreflightOnRed: true,
-    engageOnTools: [],
-    disengageOnTools: [],
+    startOnTools: [],
+    endOnTools: [],
     guidelines: resolveGuidelines({}),
     ...overrides,
   };
@@ -70,7 +70,7 @@ describe("buildHudLines", () => {
     expect(lines).toContain("spec: 1 item(s)");
   });
 
-  it("shows phase, checklist, last test, and proof checkpoint when engaged", () => {
+  it("shows phase, checklist, last test, and proof checkpoint when started", () => {
     const lines = buildHudLines(
       makeState({
         enabled: true,
@@ -193,7 +193,7 @@ describe("buildHudLines", () => {
 });
 
 describe("hiddenThinkingLabel", () => {
-  it("tracks dormant versus engaged phase labels", () => {
+  it("tracks dormant versus started phase labels", () => {
     expect(hiddenThinkingLabel(makeState(), makeConfig())).toBe("pi-tdd: dormant");
     expect(
       hiddenThinkingLabel(

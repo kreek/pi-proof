@@ -81,7 +81,7 @@ export function logDebugRunEvent(event: Omit<DebugRunEvent, "timestamp">): void 
 export function summarizeConfig(config: TDDConfig) {
   return {
     enabled: config.enabled,
-    defaultEngaged: config.defaultEngaged,
+    defaultStarted: config.defaultStarted,
     runPreflightOnRed: config.runPreflightOnRed,
     reviewProvider: config.reviewProvider,
     reviewModel: config.reviewModel,

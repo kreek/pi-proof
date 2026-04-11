@@ -7,7 +7,7 @@ import type { LifecycleDeps } from "./engagement.js";
 import { persistState } from "./persistence.js";
 import { loadPromptList } from "./prompt-loader.js";
 import { classifyRequestedSeam } from "./seams.js";
-import { maybeEngageSpecSession } from "./spec-session.js";
+import { maybeStartSpecSession } from "./spec-session.js";
 import { formatSpec } from "./spec.js";
 import type { TDDPhase } from "./types.js";
 
@@ -56,7 +56,7 @@ export function createRefineFeatureSpecTool(
         return disabledSpecSetResponse(machine, ctx);
       }
 
-      const specSession = maybeEngageSpecSession(machine, ctx);
+      const specSession = maybeStartSpecSession(machine, ctx);
       const items = normalizeSpecItems(params.items);
       if (items.length === 0) {
         return invalidSpecSetResponse(machine, ctx);

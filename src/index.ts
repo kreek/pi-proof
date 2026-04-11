@@ -230,7 +230,7 @@ export default function activate(pi: ExtensionAPI): void {
       return undefined;
     }
 
-    if (lifecycle.engaged || lifecycle.disengaged) {
+    if (lifecycle.started || lifecycle.ended) {
       updateHud(ctx, nextConfig);
     }
 

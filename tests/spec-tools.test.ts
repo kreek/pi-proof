@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PhaseStateMachine } from "../src/phase.ts";
 import { createRefineFeatureSpecTool } from "../src/spec-tools.ts";
 import { resolveGuidelines } from "../src/guidelines.ts";
-import type { EngagementDeps } from "../src/engagement.ts";
+import type { LifecycleDeps } from "../src/engagement.ts";
 import type { TDDConfig } from "../src/types.ts";
 
 function makeConfig(overrides: Partial<TDDConfig> = {}): TDDConfig {
@@ -20,10 +20,10 @@ function makeConfig(overrides: Partial<TDDConfig> = {}): TDDConfig {
     maxDiffsInContext: 5,
     persistPhase: true,
     startInSpecMode: false,
-    defaultEngaged: false,
+    defaultStarted: false,
     runPreflightOnRed: true,
-    engageOnTools: [],
-    disengageOnTools: [],
+    startOnTools: [],
+    endOnTools: [],
     guidelines: resolveGuidelines({}),
     ...overrides,
   };
@@ -40,7 +40,7 @@ function makeContext(cwd = process.cwd()) {
   } as never;
 }
 
-function makeDeps(machine: PhaseStateMachine, config: TDDConfig): EngagementDeps {
+function makeDeps(machine: PhaseStateMachine, config: TDDConfig): LifecycleDeps {
   return {
     pi: { appendEntry: vi.fn() } as never,
     machine,
@@ -104,7 +104,7 @@ describe("createRefineFeatureSpecTool", () => {
     expect(result.content[0]?.text).toContain("call tdd_refine_feature_spec again");
   });
 
-  it("auto-engages SPEC from dormant state when a runnable harness exists", async () => {
+  it("auto-starts SPEC from dormant state when a runnable harness exists", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "pi-tdd-spec-tool-"));
     writeFileSync(
       join(cwd, "package.json"),

@@ -6,7 +6,7 @@ import { complete } from "@mariozechner/pi-ai";
 import { PhaseStateMachine } from "../src/phase.ts";
 import { createPreflightTool } from "../src/review-tools.ts";
 import { resolveGuidelines } from "../src/guidelines.ts";
-import type { EngagementDeps } from "../src/engagement.ts";
+import type { LifecycleDeps } from "../src/engagement.ts";
 import type { TDDConfig } from "../src/types.ts";
 
 vi.mock("@mariozechner/pi-ai", async (importOriginal) => {
@@ -29,10 +29,10 @@ function makeConfig(overrides: Partial<TDDConfig> = {}): TDDConfig {
     maxDiffsInContext: 5,
     persistPhase: true,
     startInSpecMode: false,
-    defaultEngaged: false,
+    defaultStarted: false,
     runPreflightOnRed: true,
-    engageOnTools: [],
-    disengageOnTools: [],
+    startOnTools: [],
+    endOnTools: [],
     guidelines: resolveGuidelines({}),
     ...overrides,
   };
@@ -59,7 +59,7 @@ function makeContext(cwd: string) {
   } as never;
 }
 
-function makeDeps(machine: PhaseStateMachine, config: TDDConfig): EngagementDeps {
+function makeDeps(machine: PhaseStateMachine, config: TDDConfig): LifecycleDeps {
   return {
     pi: { appendEntry: vi.fn() } as never,
     machine,
@@ -72,7 +72,7 @@ afterEach(() => {
 });
 
 describe("createPreflightTool", () => {
-  it("auto-engages SPEC from dormant state when RED readiness runs in a repo with tests", async () => {
+  it("auto-starts SPEC from dormant state when RED readiness runs in a repo with tests", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "pi-tdd-preflight-tool-"));
     writeFileSync(
       join(cwd, "package.json"),

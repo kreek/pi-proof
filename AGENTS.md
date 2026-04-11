@@ -6,7 +6,7 @@ This file provides guidance to coding agents working in this repository.
 
 `pi-tdd` is a Pi extension (Pi = the terminal coding agent at `@mariozechner/pi-coding-agent`). It injects a `SPEC → RED → GREEN → REFACTOR` phase gate into a Pi session, with LLM-backed pre-flight and post-flight reviews at cycle boundaries. It is loaded into Pi as an ESM extension package.
 
-The extension is **dormant by default** — a fresh session does not gate anything until the agent calls `tdd_start`, the user runs an explicit `/tdd <phase>`, or a configured lifecycle hook (`engageOnTools`) fires.
+The extension is **dormant by default** — a fresh session does not gate anything until the agent calls `tdd_start`, the user runs an explicit `/tdd <phase>`, or a configured lifecycle hook (`startOnTools`) fires.
 
 ## Commands
 
@@ -28,7 +28,7 @@ After `pi:install`, if Pi is already running, run `/reload` inside Pi to pick up
 
 Quick mental model:
 
-1. **`PhaseStateMachine` (`src/phase.ts`) is the only mutable state.** Phase, engagement flag, spec checklist, cycle count, last test signal, and a rolling diff buffer all live here. Pure data + logic — no Pi or LLM dependencies, so it is trivially unit-testable. Every other module reads or mutates it.
+1. **`PhaseStateMachine` (`src/phase.ts`) is the only mutable state.** Phase, started flag, spec checklist, cycle count, last test signal, and a rolling diff buffer all live here. Pure data + logic — no Pi or LLM dependencies, so it is trivially unit-testable. Every other module reads or mutates it.
 
 2. **`src/index.ts:activate(pi)` is the entry point.** It builds the machine, registers four LLM tools (`tdd_start`, `tdd_stop`, `tdd_preflight`, `tdd_postflight`), registers the `/tdd` slash command, and wires every Pi event (`session_start`, `session_tree`, `before_agent_start`, `turn_start`, `tool_call`, `tool_result`, `turn_end`) to the right module.
 
@@ -36,11 +36,11 @@ Quick mental model:
 
 4. **Test signals drive transitions.** `src/transition.ts:extractTestSignal` converts a `bash` tool result into a pass/fail `TestSignal` (it knows about `npm test`, `pnpm test`, `pytest`, `cargo test`, `go test`, `vitest`, `jest`, `rspec`, etc.). At `turn_end`, `evaluateTransition` advances `RED → GREEN` on a failing signal and `GREEN → REFACTOR` on a passing one. `SPEC` and `REFACTOR → RED` are human-controlled by default.
 
-5. **Cycle boundaries are where the LLM reviewers run.** `→ RED` runs **preflight** (`src/preflight.ts`) — validates the spec checklist; failure **blocks** entry into RED with no override. **Disengaging** runs **postflight** (`src/postflight.ts`) — validates that every spec item has a passing test; failure surfaces gaps but **does not block** disengage. Both go through `src/reviews.ts:runReview`, which resolves the model (configured `reviewProvider`/`reviewModel` or session active model), calls `complete`, and parses JSON. Standalone `tdd_preflight` / `tdd_postflight` tools (`src/review-tools.ts`) exist for ad-hoc checks but are usually not needed.
+5. **Cycle boundaries are where the LLM reviewers run.** `→ RED` runs **preflight** (`src/preflight.ts`) — validates the spec checklist; failure **blocks** entry into RED with no override. **Ending** runs **postflight** (`src/postflight.ts`) — validates that every spec item has a passing test; failure surfaces gaps but **does not block** ending TDD. Both go through `src/reviews.ts:runReview`, which resolves the model (configured `reviewProvider`/`reviewModel` or session active model), calls `complete`, and parses JSON. Standalone `tdd_preflight` / `tdd_postflight` tools (`src/review-tools.ts`) exist for ad-hoc checks but are usually not needed.
 
-6. **Engagement is per-session, phase is persisted in-session.** `src/persistence.ts` writes a `tdd_state` custom entry on the Pi session log. `restoreState` walks the current branch backwards. `rehydrateState` in `index.ts` enforces the rule that a fresh `session_start` always starts dormant unless `defaultEngaged: true` is set, regardless of what was persisted; only `session_tree` (within-session navigation) preserves the live engagement flag.
+6. **TDD lifecycle is per-session, phase is persisted in-session.** `src/persistence.ts` writes a `tdd_state` custom entry on the Pi session log. `restoreState` walks the current branch backwards. `rehydrateState` in `index.ts` enforces the rule that a fresh `session_start` always starts dormant unless `defaultStarted: true` is set, regardless of what was persisted; only `session_tree` (within-session navigation) preserves the live started flag.
 
-7. **Lifecycle hooks (`src/engagement.ts:applyLifecycleHooks`)** check every `tool_call` against `engageOnTools` / `disengageOnTools` from config and flip the machine on/off. Disengage via lifecycle hook runs postflight first via the same `maybeRunPostflightOnDisengage` helper that the explicit disengage paths use.
+7. **Lifecycle hooks (`src/engagement.ts:applyLifecycleHooks`)** check every `tool_call` against `startOnTools` / `endOnTools` from config and flip the machine on/off. Ending via lifecycle hook runs postflight first via the same `maybeRunPostflightOnEnd` helper that the explicit end paths use.
 
 ### File map
 
@@ -51,10 +51,10 @@ Quick mental model:
 | `src/types.ts` | All shared types (`TDDPhase`, `TDDConfig`, `PhaseState`, `TestSignal`, etc.). |
 | `src/config.ts` | Loads + merges `~/.pi/agent/settings.json` and `<cwd>/.pi/settings.json`. |
 | `src/guidelines.ts` | Default per-phase prompt blocks; `guidelinesForPhase`. |
-| `src/prompt.ts` | `buildSystemPrompt` (dormant / disabled / engaged). |
+| `src/prompt.ts` | `buildSystemPrompt` (dormant / disabled / started). |
 | `src/gate.ts` | Deterministic phase gate (SPEC blocks writes; other phases record diffs). |
 | `src/transition.ts` | `extractTestSignal`, `isTestCommand`, `evaluateTransition`. |
-| `src/engagement.ts` | `createEngageTool`, `createDisengageTool`, `applyLifecycleHooks`, `maybeRunPostflightOnDisengage`. |
+| `src/engagement.ts` | `createStartTool`, `createEndTool`, `applyLifecycleHooks`, `maybeRunPostflightOnEnd`. |
 | `src/review-tools.ts` | Standalone `tdd_preflight` / `tdd_postflight` agent tools. |
 | `src/preflight.ts` | Spec checklist review (priming the cycle). Blocks entry to RED on failure. |
 | `src/postflight.ts` | End-of-cycle review (proving the cycle). Surfaces gaps but does not block. |
@@ -65,7 +65,7 @@ Quick mental model:
 
 ### Backwards-compat aliases worth knowing
 
-The codebase carries deprecated aliases that `loadConfig` translates on the fly: `startInPlanMode → startInSpecMode`, `judgeProvider/judgeModel → reviewProvider/reviewModel`, `guidelines.plan → guidelines.spec`, and the legacy phase value `"PLAN" → "SPEC"`. Internally, the spec checklist is still stored on `PhaseState.plan` / `planCompleted` — the field name is historical.
+The codebase carries deprecated aliases that `loadConfig` translates on the fly: `startInPlanMode → startInSpecMode`, `judgeProvider/judgeModel → reviewProvider/reviewModel`, `guidelines.plan → guidelines.spec`, `defaultEngaged → defaultStarted`, `engageOnTools → startOnTools`, `disengageOnTools → endOnTools`, and the legacy phase value `"PLAN" → "SPEC"`. Internally, the spec checklist is still stored on `PhaseState.plan` / `planCompleted` — the field name is historical.
 
 ## Pi extension API
 

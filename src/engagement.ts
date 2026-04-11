@@ -57,7 +57,7 @@ interface EndParams {
 }
 
 interface LifecycleDetails {
-  engaged: boolean;
+  started: boolean;
   phase: TDDPhase | null;
   reason: string;
   /** Populated by tdd_stop when postflight ran. Null otherwise. */
@@ -284,7 +284,7 @@ export async function applyLifecycleHooks(
   toolName: string,
   deps: LifecycleDeps,
   ctx: ExtensionContext
-): Promise<{ isControlTool: boolean; engaged?: boolean; disengaged?: boolean }> {
+): Promise<{ isControlTool: boolean; started?: boolean; ended?: boolean }> {
   if (CONTROL_TOOL_NAMES.has(toolName)) {
     return { isControlTool: true };
   }
@@ -309,15 +309,15 @@ export async function applyLifecycleHooks(
       `lifecycle hook: ${toolName}`,
       { viaToolName: toolName }
     );
-    if (result.details.engaged) {
-      return { isControlTool: false, engaged: true };
+    if (result.details.started) {
+      return { isControlTool: false, started: true };
     }
     return { isControlTool: false };
   }
 
   if (config.endOnTools.includes(toolName) && machine.enabled) {
     const result = await endMachine(deps, ctx, config, `via ${toolName}`);
-    return { isControlTool: false, disengaged: !result.details.engaged };
+    return { isControlTool: false, ended: !result.details.started };
   }
 
   return { isControlTool: false };
@@ -335,7 +335,7 @@ function disabledStartResponse(
 
   return {
     content: [{ type: "text" as const, text: "TDD is disabled by configuration." }],
-    details: { engaged: false, phase: null, reason: "disabled by configuration" },
+    details: { started: false, phase: null, reason: "disabled by configuration" },
   };
 }
 
@@ -375,7 +375,7 @@ async function startMachine(
         ? `TDD started in ${phase} phase after auto-refining the spec. ${reason}`
         : `TDD started in ${phase} phase. ${reason}`,
     }],
-    details: { engaged: true, phase, reason },
+    details: { started: true, phase, reason },
   };
 }
 
@@ -386,7 +386,7 @@ function blockedStartResponse(
 ) {
   return {
     content: [{ type: "text" as const, text: text ?? "RED is waiting on a clearer spec." }],
-    details: { engaged: machine.enabled, phase: machine.phase, reason },
+    details: { started: machine.enabled, phase: machine.phase, reason },
   };
 }
 
@@ -409,7 +409,7 @@ function bootstrapStartResponse(
       text:
         "Stay dormant for project scaffolding, bootstrap, or initial test-harness setup. Start TDD once the project can host a failing test for the requested behavior.",
     }],
-    details: { engaged: false, phase: null, reason },
+    details: { started: false, phase: null, reason },
   };
 }
 
@@ -432,7 +432,7 @@ function missingHarnessStartResponse(
       text:
         "TDD requires a runnable test harness. First check whether the repository already has a test command or framework; if not, set up the minimal harness that fits the stack or ask the user to confirm the tooling choice. Once a failing test can run, call tdd_start again before continuing feature work.",
     }],
-    details: { engaged: false, phase: null, reason },
+    details: { started: false, phase: null, reason },
   };
 }
 
@@ -499,7 +499,7 @@ async function endMachine(
   return {
     content: [{ type: "text" as const, text: endText(reason, postflightSummary) }],
     details: {
-      engaged: false,
+      started: false,
       phase: null,
       reason,
       postflight: postflightResult,

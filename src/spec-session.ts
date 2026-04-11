@@ -3,23 +3,23 @@ import type { PhaseStateMachine } from "./phase.js";
 import { hasRunnableTestHarness } from "./test-harness.js";
 
 export interface SpecSessionOutcome {
-  engaged: boolean;
+  started: boolean;
   waitingForHarness: boolean;
 }
 
-export function maybeEngageSpecSession(
+export function maybeStartSpecSession(
   machine: PhaseStateMachine,
   ctx: Pick<ExtensionContext, "cwd">
 ): SpecSessionOutcome {
   if (machine.enabled) {
-    return { engaged: false, waitingForHarness: false };
+    return { started: false, waitingForHarness: false };
   }
 
   if (!hasRunnableTestHarness(ctx.cwd)) {
-    return { engaged: false, waitingForHarness: true };
+    return { started: false, waitingForHarness: true };
   }
 
   machine.enabled = true;
   machine.transitionTo("SPEC", "Entered SPEC via TDD spec work");
-  return { engaged: true, waitingForHarness: false };
+  return { started: true, waitingForHarness: false };
 }

@@ -19,13 +19,13 @@ Before feature work, check whether the repository already has a runnable test co
 
 If the harness is missing, stay dormant and set up the minimal test harness that fits the stack. Ask the user instead when the framework choice is ambiguous, would introduce meaningful new tooling, or would commit the project to a testing direction the request did not imply.
 
-Stay dormant for repository scaffolding, project bootstrap, and initial test-harness setup. Engage the TDD loop only once the project can host a failing test for the requested behavior.
+Stay dormant for repository scaffolding, project bootstrap, and initial test-harness setup. Start the TDD loop only once the project can host a failing test for the requested behavior.
 
 Project scaffolding is not itself a user-visible behavior. Do not invent scaffold-only TDD criteria like "the build passes", "Vitest is configured", "directories exist", "routes are stubbed", or "placeholder utilities have tests" just to justify entering SPEC or RED.
 
 If a story is only schema, migration, database, or setup work, treat it as support work first. Ask which real feature it supports before giving it its own TDD cycle, unless the user clearly wants to prove a specific internal contract or risk at that layer.
 
-If you inherit a repo that already has a runnable test harness and a large pre-existing scaffold, treat that scaffold as the baseline state of the project. Do not try to retroactively force every existing file back through TDD, and do not keep feature work dormant just because earlier files were created before TDD was engaged.
+If you inherit a repo that already has a runnable test harness and a large pre-existing scaffold, treat that scaffold as the baseline state of the project. Do not try to retroactively force every existing file back through TDD, and do not keep feature work dormant just because earlier files were created before TDD was started.
 
 When the user asks for a broad scaffold:
 

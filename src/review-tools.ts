@@ -10,7 +10,7 @@ import { persistState } from "./persistence.js";
 import { loadPromptList } from "./prompt-loader.js";
 import { formatRedReadinessResult, runRedReadinessCheck } from "./red-readiness.js";
 import { classifyRequestedSeam } from "./seams.js";
-import { maybeEngageSpecSession, type SpecSessionOutcome } from "./spec-session.js";
+import { maybeStartSpecSession, type SpecSessionOutcome } from "./spec-session.js";
 import { formatSpec } from "./spec.js";
 
 export const PREFLIGHT_TOOL_NAME = "tdd_preflight";
@@ -48,7 +48,7 @@ export function createPreflightTool(
     async execute(_toolCallId, params, _signal, _onUpdate, ctx: ExtensionContext) {
       const config = deps.getConfig();
       const machine = deps.machine;
-      const specSession = maybeEngageSpecSession(machine, ctx);
+      const specSession = maybeStartSpecSession(machine, ctx);
 
       const result = await runRedReadinessCheck(
         {
@@ -64,7 +64,7 @@ export function createPreflightTool(
         machine.setPlan(result.refinedSpec);
       }
       machine.setRequestedSeam(classifyRequestedSeam(params.userStory, machine.plan));
-      if (specSession.engaged || result.refinedSpec || machine.requestedSeam) {
+      if (specSession.started || result.refinedSpec || machine.requestedSeam) {
         persistState(deps.pi, machine);
       }
       ctx.ui.setStatus("tdd-gate", machine.bottomBarText());

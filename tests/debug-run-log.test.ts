@@ -40,13 +40,13 @@ describe("DebugRunLogger", () => {
       reason: "new",
       config: {
         enabled: true,
-        defaultEngaged: false,
+        defaultStarted: false,
         runPreflightOnRed: true,
         reviewProvider: null,
         reviewModel: null,
         reviewOverrides: [],
-        engageOnTools: [],
-        disengageOnTools: [],
+        startOnTools: [],
+        endOnTools: [],
       },
       state: {
         enabled: false,
@@ -89,13 +89,13 @@ describe("DebugRunLogger", () => {
       reason: "new",
       config: {
         enabled: true,
-        defaultEngaged: false,
+        defaultStarted: false,
         runPreflightOnRed: true,
         reviewProvider: null,
         reviewModel: null,
         reviewOverrides: [],
-        engageOnTools: [],
-        disengageOnTools: [],
+        startOnTools: [],
+        endOnTools: [],
       },
       state: {
         enabled: false,
