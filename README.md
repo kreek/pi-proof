@@ -1,6 +1,6 @@
 # pi-tdd
 
-A TDD extension for [Pi](https://pi.dev), the terminal coding agent. Enforces the **specifying-implementing-refactoring** cycle and nothing else. No opinions on frameworks, architecture, or workflow beyond the discipline of writing a failing test first.
+A TDD extension for [Pi](https://pi.dev), the terminal coding agent. Enforces the **red-green-refactor** cycle and nothing else. No opinions on frameworks, architecture, or workflow beyond the discipline of writing a failing test first.
 
 ---
 
