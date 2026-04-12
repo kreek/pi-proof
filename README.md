@@ -247,6 +247,10 @@ This extension improves discipline. It does not replace judgment.
 
 The goal is not perfect enforcement. The goal is to keep the agent inside a tight feedback loop where tests drive every change.
 
+## Eval
+
+pi-tdd includes an eval suite built on [pi-do-eval](https://github.com/manifestdocs/pi-do-eval), a general-purpose eval framework for Pi extensions. The eval runs Pi with pi-tdd loaded against small coding projects, then scores TDD compliance, test quality, and correctness. See `eval/` for the plugin, projects, and run configuration.
+
 ## License
 
 MIT
