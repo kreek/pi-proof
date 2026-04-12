@@ -1,6 +1,6 @@
 # pi-tdd
 
-A TDD extension for [Pi](https://pi.dev), the terminal coding agent. Enforces the **specifying-implementing-refactoring** cycle and nothing else — no opinions on frameworks, architecture, or workflow beyond the discipline of writing a failing test first.
+A TDD extension for [Pi](https://pi.dev), the terminal coding agent. Enforces the **specifying-implementing-refactoring** cycle and nothing else. No opinions on frameworks, architecture, or workflow beyond the discipline of writing a failing test first.
 
 ---
 
@@ -110,11 +110,11 @@ The extension provides two agent tools and a manual toggle:
 
 | Interface | Description |
 |-----------|-------------|
-| `tdd_start` | Agent tool — enables TDD mode |
-| `tdd_done` | Agent tool — disables TDD mode when work is complete |
-| `/tdd` | Slash command — manual toggle for user override |
+| `tdd_start` | Agent tool: enables TDD mode |
+| `tdd_done` | Agent tool: disables TDD mode when work is complete |
+| `/tdd` | Slash command: manual toggle for user override |
 
-When TDD is off, the extension injects a system prompt nudge telling the agent that TDD is available for feature and bug fix work. The agent decides whether the current task warrants it — no keyword heuristics.
+When TDD is off, the extension injects a system prompt nudge telling the agent that TDD is available for feature and bug fix work. The agent decides whether the current task warrants it. No keyword heuristics.
 
 When TDD is active, the extension:
 
@@ -221,7 +221,7 @@ The widget updates after every test run.
 git clone git@github.com:manifestdocs/pi-tdd.git
 cd pi-tdd
 npm install
-npm test          # vitest — 46 tests for the parser module
+npm test          # vitest, 46 tests for the parser module
 ```
 
 Project structure:
