@@ -326,7 +326,7 @@ export default function tddExtension(pi: ExtensionAPI) {
 		const guidance: Record<string, string> = {
 			specifying: "Write a failing test FIRST. Do not modify production code until a test exists and fails. Use standard test file naming (*.test.*, *.spec.*, *_test.*, *_spec.*, or files in __tests__/ or test/ directories).",
 			implementing: "Write the MINIMAL production code to make the failing test pass. No extra functionality or refactoring yet.",
-			refactoring: "Restructure code freely but keep all tests passing. No new behavior. If a change causes test failure, revert it immediately. When the task is complete and all tests pass, call tdd_done.",
+			refactoring: "Restructure code freely but keep all tests passing. No new behavior. If a change causes test failure, revert it immediately. Look for repeated patterns across handlers/functions and extract them. Deduplicate test fixtures and shared setup. When the task is complete and all tests pass, call tdd_done.",
 		};
 
 		const testOrg = [
@@ -336,6 +336,7 @@ export default function tddExtension(pi: ExtensionAPI) {
 			"- Use parameterized/table-driven tests for variations of the SAME behavior (e.g. multiple input-output pairs). Use separate groups for DIFFERENT behaviors (e.g. valid input vs error handling vs edge cases).",
 			"- Each test describes the expected outcome, not the setup. Prefer 'returns 0 for empty list' over 'test empty list'.",
 			"- Add to an existing test file when the new test covers the same unit. Create a new file when it covers a different one.",
+			"- Extract shared test setup (fixtures, helpers, factories) into a common location rather than duplicating across test files. (e.g. Jest/Vitest: shared helper file; pytest: conftest.py; Go: testutil package; RSpec: spec_helper.rb or shared_context.)",
 			"- Test YOUR business logic, not library/framework behavior. If a dependency is already tested independently, don't re-prove it. Assert what your code does with the result, not that the library works.",
 		].join("\n");
 
