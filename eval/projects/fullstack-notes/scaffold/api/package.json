@@ -1,0 +1,14 @@
+{
+  "name": "notes-api",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.1"
+  }
+}
