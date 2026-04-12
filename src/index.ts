@@ -57,6 +57,14 @@ function isProductionFile(filePath: string): boolean {
   return !isTestFile(filePath) && !isConfigFile(filePath);
 }
 
+const IMPORT_ERROR_RE =
+  /Cannot find module|Module not found|ModuleNotFoundError|ImportError|unresolved import|cannot find package|no required module|Could not resolve/i;
+
+function isImportOnlyFailure(output: string, summary: TestSummary): boolean {
+  const noTestsRan = summary.passed === 0 && summary.failed === 0 && summary.tests.length === 0;
+  return noTestsRan && IMPORT_ERROR_RE.test(output);
+}
+
 function getStringInput(input: Record<string, unknown>, key: string): string | undefined {
   const val = input[key];
   return typeof val === "string" ? val : undefined;
@@ -131,16 +139,22 @@ function renderWidget(
 const TDD_OFF_PROMPT =
   "\n\n[TDD MODE \u2014 OFF]\n" +
   "TDD mode enforces test-driven development (specifying \u2192 implementing \u2192 refactoring). " +
-  "For feature work or bug fixes, call tdd_start to enable it before writing code. " +
+  "Before enabling TDD: scaffold the project first \u2014 create config files " +
+  "(package.json, pyproject.toml, Cargo.toml, go.mod, etc.), install the test " +
+  "framework, and ensure the test command works (even if there are no tests yet). " +
+  "Then call tdd_start to begin TDD. " +
   "Do not use TDD for config changes, documentation, scaffolding, or exploratory tasks.";
 
 const PHASE_GUIDANCE: Record<string, string> = {
   specifying: [
-    "Write a failing test FIRST.",
+    "Write a failing test for ONE user story or requirement at a time.",
+    "Do not write tests for multiple stories in one cycle.",
+    "After this test fails, you will implement just enough code to pass it,",
+    "then return to SPECIFYING for the next story.",
     "Do not modify production code until a test exists and fails.",
     "Use standard test file naming",
-    "(*.test.*, *.spec.*, *_test.*, *_spec.*,",
-    "or files in __tests__/ or test/ directories).",
+    "(*.test.*, *.spec.*, *_test.*, *_spec.*, test_*.*,",
+    "or files in __tests__/, test/, or tests/ directories).",
     "Test YOUR business logic, not library/framework behavior.",
     "If a dependency is already tested independently,",
     "don't re-prove it.",
@@ -408,7 +422,11 @@ export default function tddExtension(pi: ExtensionAPI) {
     const config = await resolveTestConfig(ctx.cwd, ctx.hasUI ? ctx.ui : undefined);
     if (!config) {
       ctx.ui.notify("TDD requires a test command", "warning");
-      return "Could not determine test command";
+      return (
+        "Could not determine test command. " +
+        "Scaffold the project first: create a config file (package.json, pyproject.toml, " +
+        "Cargo.toml, go.mod, etc.) with a test script/dependency, then call tdd_start again."
+      );
     }
     testCommand = config.command;
     testCwd = config.cwd;
@@ -417,7 +435,12 @@ export default function tddExtension(pi: ExtensionAPI) {
     setPhase("specifying", ctx);
     const label = testCwd !== ctx.cwd ? ` in ${path.basename(testCwd)}` : "";
     ctx.ui.notify(`TDD on${label} \u2014 write a failing test`);
-    return `TDD enabled \u2014 SPECIFYING phase. Write a failing test first.\nTest command: ${testCommand}${label}`;
+    let msg = `TDD enabled \u2014 SPECIFYING phase. Write a failing test first.\nTest command: ${testCommand}${label}`;
+    if (config.command === "pytest") {
+      msg +=
+        '\nHint: add pythonpath = ["."] under [tool.pytest.ini_options] in pyproject.toml so pytest can import your modules.';
+    }
+    return msg;
   }
 
   function disableTdd(ctx: ExtensionContext): string {
@@ -502,11 +525,21 @@ export default function tddExtension(pi: ExtensionAPI) {
     updateWidget(ctx);
 
     const label = `[TDD ${phase.toUpperCase()}] Tests ${passed ? "PASS" : "FAIL"}`;
-    const appended = [...event.content, { type: "text" as const, text: `\n${label}:\n${output}` }];
+    let appendText = `\n${label}:\n${output}`;
 
-    if (phase === "specifying" && !passed) setPhase("implementing", ctx);
-    else if (phase === "implementing" && passed) setPhase("refactoring", ctx);
+    if (phase === "specifying" && !passed && isImportOnlyFailure(output, lastSummary)) {
+      appendText +=
+        "\n\n[TDD HINT] Tests failed due to a missing module, not a failing assertion." +
+        " Create a minimal stub (empty class/function with the right exports) so the" +
+        " tests can load and fail on actual behavioral assertions. Stay in SPECIFYING" +
+        " — do not implement business logic yet.";
+    } else if (phase === "specifying" && !passed) {
+      setPhase("implementing", ctx);
+    } else if (phase === "implementing" && passed) {
+      setPhase("refactoring", ctx);
+    }
 
+    const appended = [...event.content, { type: "text" as const, text: appendText }];
     return { content: appended };
   });
 
