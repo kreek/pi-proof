@@ -52,12 +52,14 @@ pi install git:git@github.com:kreek/pi-tdd.git
 git clone git@github.com:kreek/pi-tdd.git
 cd pi-tdd
 
-# Project-local (writes to .pi/settings.json)
-npm run install-ext
+# Project-local
+pi install -l ./
 
-# Global (writes to ~/.pi/agent/extensions/)
-npm run install-ext
+# Global
+pi install ./
 ```
+
+For manual global development installs, `npm run install-ext` symlinks the current checkout into `~/.pi/agent/extensions/pi-tdd`.
 
 If Pi is already running, run `/reload` inside the session to pick up the extension.
 
