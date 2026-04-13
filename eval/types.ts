@@ -1,20 +1,20 @@
-// Project/variant config is owned by the eval consumer, not the framework
+// Trial/variant config is owned by the eval consumer, not the framework
 
 export interface TestStack {
   language: string;
   testFramework: string;
-  /** Which part of the project this stack applies to, e.g. "backend", "frontend" */
+  /** Which part of the trial this stack applies to, e.g. "backend", "frontend" */
   scope?: string;
   /** Extra instructions for the agent, e.g. "Create a pyproject.toml." */
   setup?: string;
 }
 
 export interface VariantConfig {
-  /** Single-package projects: one stack. Monorepos: one stack per package. */
+  /** Single-package trials: one stack. Monorepos: one stack per package. */
   stacks: TestStack[] | TestStack;
 }
 
-export interface ProjectConfig {
+export interface TrialConfig {
   name: string;
   description: string;
   prdFile: string;
@@ -46,5 +46,5 @@ export interface EvalConfig {
     inactivityMs?: number;
     judgeMs?: number;
   };
-  runSets?: Record<string, Array<{ project: string; variant: string }>>;
+  runSets?: Record<string, Array<{ trial: string; variant: string }>>;
 }
