@@ -1,7 +1,7 @@
 {
   "name": "pi-tdd",
   "version": "1.0.0",
-  "description": "pi-tdd is a TDD extension for Pi that guides feature and bug-fix work through a red-green-refactor cycle.",
+  "description": "TDD extension for Pi that guides feature and bug-fix work through a red-green-refactor cycle, with built-in parsing for popular test frameworks.",
   "type": "module",
   "pi": {
     "extensions": [
