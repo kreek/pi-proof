@@ -55,10 +55,9 @@ function frameLine(content: string, innerWidth: number, theme: TestRunTheme): st
 export function renderTestRunOverlay(snap: TestRunSnapshot, theme: TestRunTheme, width: number): string[] {
   const innerWidth = Math.max(1, width - 5);
   const panelWidth = innerWidth + 4;
-  const bottomShadowWidth = panelWidth - 1;
   const topBorder = theme.fg("borderMuted", `┌${"─".repeat(innerWidth + 2)}┐`);
   const bottomBorder = `${theme.fg("borderMuted", `└${"─".repeat(innerWidth + 2)}┘`)}${theme.fg("dim", SHADOW_CHAR)}`;
-  const shadowFloor = ` ${theme.fg("dim", SHADOW_CHAR.repeat(bottomShadowWidth))}`;
+  const shadowFloor = ` ${theme.fg("dim", SHADOW_CHAR.repeat(panelWidth))}`;
   const lines = [topBorder];
   const statusColor = snap.running ? "accent" : snap.passed ? "success" : "error";
   const statusLabel = snap.running ? `${snap.spinnerFrame} RUNNING` : snap.passed ? "PASS" : "FAIL";

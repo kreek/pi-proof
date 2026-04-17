@@ -26,6 +26,8 @@ describe("renderTestRunOverlay", () => {
     expect(lines.some((line) => line.includes("in api"))).toBe(true);
     expect(lines.some((line) => line.includes("waiting for output..."))).toBe(true);
     expect(lines.every((line) => line.length <= 40)).toBe(true);
+    expect(lines.at(-1)).toHaveLength(40);
+    expect(lines.at(-1)?.endsWith("░")).toBe(true);
   });
 
   it("shows the most recent output lines with overflow context", () => {
