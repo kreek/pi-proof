@@ -2,7 +2,7 @@
 
 pi-proof is a proof-first extension for [Pi](https://pi.dev), the terminal coding agent. It does not force TDD for every task. Instead, it nudges Pi into a **red-green-refactor** cycle when the next change should be specified in a test before implementation, and stays out of the way for documentation, config, scaffolding, and exploratory work. It includes built-in parsing for popular test frameworks across the major languages, and can infer a sensible default when a project does not already have a test setup.
 
-[![pi-proof demo](https://github.com/kreek/pi-tdd/releases/download/v1.0.0/demo.gif)](https://github.com/kreek/pi-tdd/releases/download/v1.0.0/demo.mp4)
+[![pi-proof demo](https://github.com/kreek/pi-proof/releases/download/v1.0.0/demo.gif)](https://github.com/kreek/pi-proof/releases/download/v1.0.0/demo.mp4)
 
 ---
 
@@ -40,23 +40,21 @@ pi
 
 ### 2. Install pi-proof
 
-The package name is now `pi-proof`. The Git repository path is still `kreek/pi-tdd` while the rename migrates.
-
 **From Git:**
 
 ```bash
 # Project-local
-pi install -l git:git@github.com:kreek/pi-tdd.git
+pi install -l git:git@github.com:kreek/pi-proof.git
 
 # Global
-pi install git:git@github.com:kreek/pi-tdd.git
+pi install git:git@github.com:kreek/pi-proof.git
 ```
 
 **From a local checkout:**
 
 ```bash
-git clone git@github.com:kreek/pi-tdd.git
-cd pi-tdd
+git clone git@github.com:kreek/pi-proof.git
+cd pi-proof
 
 # Project-local
 pi install -l ./
@@ -241,8 +239,8 @@ The widget updates after every test run.
 ## Development
 
 ```bash
-git clone git@github.com:kreek/pi-tdd.git
-cd pi-tdd
+git clone git@github.com:kreek/pi-proof.git
+cd pi-proof
 npm install
 npm run install-hooks # enable the repo-local pre-commit hook
 npm test          # vitest
