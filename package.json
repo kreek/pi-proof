@@ -1,7 +1,7 @@
 {
-  "name": "pi-tdd",
+  "name": "pi-proof",
   "version": "1.1.0",
-  "description": "TDD extension for Pi that guides feature and bug-fix work through a red-green-refactor cycle, with built-in parsing for popular test frameworks.",
+  "description": "Proof-first Pi extension that uses a red-green-refactor cycle when behavior should be specified in tests first, with built-in parsing for popular test frameworks.",
   "type": "module",
   "pi": {
     "extensions": [
@@ -16,9 +16,9 @@
     "LICENSE"
   ],
   "scripts": {
-    "install-ext": "mkdir -p ~/.pi/agent/extensions && ln -sfn \"$(pwd)\" ~/.pi/agent/extensions/pi-tdd && echo 'Installed to ~/.pi/agent/extensions/pi-tdd -- run /reload in Pi to activate'",
+    "install-ext": "mkdir -p ~/.pi/agent/extensions && ln -sfn \"$(pwd)\" ~/.pi/agent/extensions/pi-proof && echo 'Installed to ~/.pi/agent/extensions/pi-proof -- run /reload in Pi to activate'",
     "install-hooks": "git config core.hooksPath .githooks && echo 'Installed Git hooks from .githooks/'",
-    "uninstall-ext": "rm -f ~/.pi/agent/extensions/pi-tdd && echo 'Uninstalled'",
+    "uninstall-ext": "rm -f ~/.pi/agent/extensions/pi-proof && echo 'Uninstalled'",
     "lint": "biome check",
     "lint:staged": "biome check --staged --no-errors-on-unmatched",
     "lint:fix": "biome check --write",
@@ -45,8 +45,8 @@
     "pi-package",
     "pi-extension",
     "pi",
-    "tdd",
-    "test-driven-development",
+    "proof",
+    "proof-first",
     "red-green-refactor",
     "testing",
     "agent-workflow",

@@ -5,7 +5,10 @@ import type { EvalPlugin, EvalSession, PluginEvent, VerifyResult } from "pi-do-e
 
 import { isConfigFile, isTestFile } from "../../src/file-classification.js";
 
-const PI_TDD_PATH = path.resolve(import.meta.dirname, "../../src/index.ts");
+const PI_PROOF_PATH = path.resolve(import.meta.dirname, "../../src/index.ts");
+const START_TOOL_NAMES = new Set(["proof_start", "tdd_start"]);
+const DONE_TOOL_NAMES = new Set(["proof_done", "tdd_done"]);
+const PHASE_RESULT_RE = /\[(?:PROOF|TDD) (SPECIFYING|IMPLEMENTING|REFACTORING)\] Tests (PASS|FAIL)/;
 
 const SOURCE_RE = /\.(ts|js|tsx|jsx|py|rb|rs|go|c|ex|exs|java|kt|php)$/;
 const SKIP_DIRS = new Set(["node_modules", ".git", "target", "vendor", "__pycache__", "dist", ".next"]);
@@ -34,19 +37,31 @@ function filesWithLabel(session: EvalSession, label: string) {
   return session.fileWrites.filter((f) => f.labels.includes(label));
 }
 
+function findToolCall(session: EvalSession, names: Set<string>) {
+  return session.toolCalls.find((call) => names.has(call.name));
+}
+
+function hasToolCall(session: EvalSession, names: Set<string>): boolean {
+  return session.toolCalls.some((call) => names.has(call.name));
+}
+
+function includesAny(text: string, snippets: string[]): boolean {
+  return snippets.some((snippet) => text.includes(snippet));
+}
+
 // -- Scoring (exported for testing) -------------------------------------------
 
-export function scoreTddCompliance(session: EvalSession, taskCount: number): { score: number; findings: string[] } {
+export function scoreProofCompliance(session: EvalSession, taskCount: number): { score: number; findings: string[] } {
   const findings: string[] = [];
   let score = 0;
 
-  const tddStart = session.toolCalls.find((c) => c.name === "tdd_start");
-  const tddStarted = tddStart && !tddStart.resultText.includes("Could not");
-  if (tddStarted) score += 15;
-  else if (tddStart) findings.push(`tdd_start failed: ${tddStart.resultText}`);
-  else findings.push("Agent never called tdd_start");
+  const proofStart = findToolCall(session, START_TOOL_NAMES);
+  const proofStarted = proofStart && !proofStart.resultText.includes("Could not");
+  if (proofStarted) score += 15;
+  else if (proofStart) findings.push(`proof_start failed: ${proofStart.resultText}`);
+  else findings.push("Agent never called proof_start");
 
-  if (session.toolCalls.some((c) => c.name === "tdd_done")) score += 5;
+  if (hasToolCall(session, DONE_TOOL_NAMES)) score += 5;
 
   const testWrites = filesWithLabel(session, "test");
   const prodWrites = filesWithLabel(session, "production");
@@ -87,11 +102,13 @@ export function scoreTddCompliance(session: EvalSession, taskCount: number): { s
   return { score: Math.min(100, Math.round(score)), findings };
 }
 
+export const scoreTddCompliance = scoreProofCompliance;
+
 export function scoreInfrastructure(session: EvalSession, verify: VerifyResult, isMonorepo: boolean): number {
   let score = 0;
 
-  const tddStart = session.toolCalls.find((c) => c.name === "tdd_start");
-  const autoDetected = tddStart && !tddStart.resultText.includes("Could not");
+  const proofStart = findToolCall(session, START_TOOL_NAMES);
+  const autoDetected = proofStart && !proofStart.resultText.includes("Could not");
   if (autoDetected) score += 30;
   if (verify.passed) score += 20;
   if (getTestRuns(session).length > 0) score += 25;
@@ -136,7 +153,7 @@ function detectTestCommandInDir(dir: string): string | undefined {
       const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf-8"));
       if (pkg.scripts?.test) return "npm test";
     } catch (err) {
-      console.warn(`[pi-tdd] Failed to parse package.json in ${dir}:`, (err as Error).message);
+      console.warn(`[pi-proof] Failed to parse package.json in ${dir}:`, (err as Error).message);
     }
   }
   if (exists("Cargo.toml")) return "cargo test";
@@ -149,7 +166,7 @@ function detectTestCommandInDir(dir: string): string | undefined {
       const content = fs.readFileSync(path.join(dir, "Makefile"), "utf-8");
       if (/^test\s*:/m.test(content)) return "make test";
     } catch (err) {
-      console.warn(`[pi-tdd] Failed to read Makefile in ${dir}:`, (err as Error).message);
+      console.warn(`[pi-proof] Failed to read Makefile in ${dir}:`, (err as Error).message);
     }
   }
   return undefined;
@@ -194,7 +211,7 @@ function countFiles(dir: string, predicate: (f: string) => boolean): number {
   try {
     walk(dir);
   } catch (err) {
-    console.warn(`[pi-tdd] Error counting files in ${dir}:`, (err as Error).message);
+    console.warn(`[pi-proof] Error counting files in ${dir}:`, (err as Error).message);
   }
   return count;
 }
@@ -219,7 +236,7 @@ function collectSourceFiles(dir: string): { testFiles: string[]; prodFiles: stri
   try {
     walk(dir);
   } catch (err) {
-    console.warn(`[pi-tdd] Error collecting source files in ${dir}:`, (err as Error).message);
+    console.warn(`[pi-proof] Error collecting source files in ${dir}:`, (err as Error).message);
   }
   return { testFiles, prodFiles };
 }
@@ -241,8 +258,8 @@ function readFiles(dir: string, files: string[], max = 5000): string {
 // -- Plugin -------------------------------------------------------------------
 
 const piTddPlugin: EvalPlugin = {
-  name: "pi-tdd",
-  extensionPath: PI_TDD_PATH,
+  name: "pi-proof",
+  extensionPath: PI_PROOF_PATH,
 
   classifyFile(filePath) {
     if (isTestFile(filePath)) return "test";
@@ -253,11 +270,11 @@ const piTddPlugin: EvalPlugin = {
   parseEvent(_toolName, resultText, timestamp) {
     const events: PluginEvent[] = [];
 
-    if (resultText.includes("TDD enabled")) {
-      events.push({ timestamp, type: "phase_change", data: { from: "off", to: "specifying", trigger: "tdd_start" } });
+    if (includesAny(resultText, ["Proof enabled", "TDD enabled"])) {
+      events.push({ timestamp, type: "phase_change", data: { from: "off", to: "specifying", trigger: "proof_start" } });
     }
 
-    const phaseMatch = resultText.match(/\[TDD (SPECIFYING|IMPLEMENTING|REFACTORING)\] Tests (PASS|FAIL)/);
+    const phaseMatch = resultText.match(PHASE_RESULT_RE);
     if (phaseMatch) {
       const phase = phaseMatch[1]?.toLowerCase();
       const passed = phaseMatch[2] === "PASS";
@@ -278,8 +295,8 @@ const piTddPlugin: EvalPlugin = {
       }
     }
 
-    if (resultText.includes("TDD disabled") || resultText.includes("TDD off")) {
-      events.push({ timestamp, type: "phase_change", data: { from: "unknown", to: "off", trigger: "tdd_done" } });
+    if (includesAny(resultText, ["Proof disabled", "TDD disabled", "Proof off", "TDD off"])) {
+      events.push({ timestamp, type: "phase_change", data: { from: "unknown", to: "off", trigger: "proof_done" } });
     }
 
     return events;
@@ -329,7 +346,7 @@ const piTddPlugin: EvalPlugin = {
   },
 
   scoreSession(session, verify) {
-    const tdd = scoreTddCompliance(session, projectTaskCount);
+    const tdd = scoreProofCompliance(session, projectTaskCount);
     const infra = scoreInfrastructure(session, verify, projectIsMonorepo);
     const correct = scoreCorrectness(session, verify);
 
@@ -346,7 +363,7 @@ const piTddPlugin: EvalPlugin = {
     const prodContent = readFiles(workDir, prodFiles);
 
     return [
-      "You are evaluating code built from a PRD using TDD. Respond with ONLY a JSON object.",
+      "You are evaluating code built from a PRD using a proof-first workflow. Respond with ONLY a JSON object.",
       "",
       "## PRD",
       prd,

@@ -5,7 +5,7 @@ const config: ProjectConfig = {
   description: "Fullstack link shortener with a separate backend API and SPA frontend",
   prdFile: "PRD.md",
   taskCount: 4,
-  plugin: "pi-tdd",
+  plugin: "pi-proof",
   features: ["monorepo-detection", "subdirectory-exec", "test-command-detect", "phase-gating", "red-green-refactor"],
   variants: {
     "python-pytest-react": {

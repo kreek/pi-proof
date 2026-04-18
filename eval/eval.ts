@@ -19,8 +19,8 @@ import {
   printSummary,
   runEval,
   runJudge,
-  scoreSession,
   type SuiteReport,
+  scoreSession,
   updateBenchIndex,
   updateRunIndex,
   updateSuiteIndex,
@@ -101,7 +101,12 @@ function buildPrompt(variant: VariantConfig, prdFile: string): string {
     const parts = [prefix, core, stack.setup ?? ""].filter(Boolean);
     return parts.join(" ");
   });
-  return ["Implement all user stories in the attached PRD.", ...stackInstructions, "Work through every user story without stopping. Do not ask for confirmation between features.", `@${prdFile}`].join(" ");
+  return [
+    "Implement all user stories in the attached PRD.",
+    ...stackInstructions,
+    "Work through every user story without stopping. Do not ask for confirmation between features.",
+    `@${prdFile}`,
+  ].join(" ");
 }
 
 function getConfiguredSuites(config: EvalConfig): Record<string, SuiteEntry[]> {
@@ -124,7 +129,13 @@ function getAllFlags(args: string[], name: string): string[] {
   const out: string[] = [];
   const flag = `--${name}`;
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === flag && i + 1 < args.length) out.push(args[++i]!);
+    if (args[i] === flag && i + 1 < args.length) {
+      const value = args[i + 1];
+      if (value !== undefined) {
+        out.push(value);
+        i += 1;
+      }
+    }
   }
   return out;
 }
@@ -157,7 +168,7 @@ function getSuiteConcurrency(args: string[], config: EvalConfig): number {
   return parsed;
 }
 
-async function runWithConcurrency<T>(items: T[], concurrency: number, fn: (item: T, index: number) => Promise<void>) {
+async function _runWithConcurrency<T>(items: T[], concurrency: number, fn: (item: T, index: number) => Promise<void>) {
   let currentIndex = 0;
 
   async function worker() {
@@ -328,7 +339,7 @@ async function runTrial(
   return { report, runDir };
 }
 
-async function runSuite(suiteName: string, entries: SuiteEntry[], opts: RunTrialOpts, concurrency: number) {
+async function runSuite(suiteName: string, entries: SuiteEntry[], opts: RunTrialOpts, _concurrency: number) {
   const suiteRunId = buildTimestamp();
   const globalEpochs = evalConfig.epochs ?? 1;
   const allReports: Array<{ report: EvalReport; runDir: string }> = [];
@@ -359,17 +370,16 @@ async function runSuite(suiteName: string, entries: SuiteEntry[], opts: RunTrial
   const previous = loadPreviousSuiteReport(RUNS_DIR, suiteName, suiteRunId, suiteWorkerModel);
 
   const suiteReport = createSuiteReport(
-    suiteName, suiteRunId, allReports,
+    suiteName,
+    suiteRunId,
+    allReports,
     new Date().toISOString(),
     maxEpochs > 1 ? maxEpochs : undefined,
     suiteWorkerModel,
   );
 
   if (previous) {
-    comparison = compareSuiteReports(
-      suiteReport, previous,
-      { threshold: evalConfig.regressions?.threshold },
-    );
+    comparison = compareSuiteReports(suiteReport, previous, { threshold: evalConfig.regressions?.threshold });
     suiteReport.comparison = comparison;
   }
 
@@ -398,7 +408,7 @@ async function runSuite(suiteName: string, entries: SuiteEntry[], opts: RunTrial
 }
 
 function printUsage() {
-  console.log("pi-tdd eval suite");
+  console.log("pi-proof eval suite");
   console.log("");
   console.log("Usage:");
   console.log("  eval list                                        List trials, variants, and suites");
@@ -550,8 +560,7 @@ if (command === "list") {
   const benchStartedAt = new Date().toISOString();
   const suiteReportsMap = new Map<string, SuiteReport>();
 
-  for (let mi = 0; mi < modelsToRun.length; mi++) {
-    const m = modelsToRun[mi]!;
+  for (const [mi, m] of modelsToRun.entries()) {
     const modelLabel = m.provider ? `${m.provider}/${m.model}` : (m.model ?? "default");
     console.log(`\n=== Benchmarking with ${modelLabel} ===\n`);
 
@@ -583,17 +592,16 @@ if (command === "list") {
     const previous = loadPreviousSuiteReport(RUNS_DIR, suiteName, suiteRunId, suiteWorkerModel);
 
     const suiteReport = createSuiteReport(
-      suiteName, suiteRunId, allReports,
+      suiteName,
+      suiteRunId,
+      allReports,
       new Date().toISOString(),
       maxEpochs > 1 ? maxEpochs : undefined,
       suiteWorkerModel,
     );
 
     if (previous) {
-      const comparison = compareSuiteReports(
-        suiteReport, previous,
-        { threshold: evalConfig.regressions?.threshold },
-      );
+      const comparison = compareSuiteReports(suiteReport, previous, { threshold: evalConfig.regressions?.threshold });
       suiteReport.comparison = comparison;
     }
 
@@ -620,15 +628,17 @@ if (command === "list") {
   updateBenchIndex(RUNS_DIR);
 } else if (command === "view") {
   const { setServerConfig } = await import("pi-do-eval/server/config");
-  const launcherTrials = await Promise.all(listTrials().map(async (t) => {
-    const config = await loadConfig(t);
-    return { name: t, description: config.description, variants: Object.keys(config.variants) };
-  }));
+  const launcherTrials = await Promise.all(
+    listTrials().map(async (t) => {
+      const config = await loadConfig(t);
+      return { name: t, description: config.description, variants: Object.keys(config.variants) };
+    }),
+  );
   setServerConfig(
     {
       trials: launcherTrials,
       suites: Object.fromEntries(
-        Object.entries(configuredSuites).map(([k, v]) => [k, v.map(e => ({ trial: e.trial, variant: e.variant }))])
+        Object.entries(configuredSuites).map(([k, v]) => [k, v.map((e) => ({ trial: e.trial, variant: e.variant }))]),
       ),
       models: evalConfig.models ?? [],
       defaultWorker: evalConfig.worker,

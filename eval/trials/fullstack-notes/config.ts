@@ -6,7 +6,7 @@ const config: ProjectConfig = {
   prdFile: "PRD.md",
   taskCount: 3,
   scaffoldDir: "scaffold",
-  plugin: "pi-tdd",
+  plugin: "pi-proof",
   features: ["monorepo-detection", "subdirectory-exec", "test-command-detect"],
   variants: {
     "typescript-vitest": {

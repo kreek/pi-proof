@@ -56,6 +56,6 @@ describe("evaluateTestResult", () => {
 
     expect(result.nextPhase).toBe("refactoring");
     expect(result.summary.duration).toBe("1.3s");
-    expect(result.appendText).toContain("[TDD IMPLEMENTING] Tests PASS");
+    expect(result.appendText).toContain("[PROOF IMPLEMENTING] Tests PASS");
   });
 });

@@ -2,18 +2,18 @@ export type Phase = "off" | "specifying" | "implementing" | "refactoring";
 
 type ActivePhase = Exclude<Phase, "off">;
 
-const TDD_OFF_PROMPT = [
-  "[TDD MODE — OFF]",
-  "TDD mode enforces test-driven development (specifying → implementing → refactoring). " +
-    "Use it for new features, bug fixes, and changes to business logic. " +
-    "This includes changing existing behavior when the intended result should be made " +
-    "explicit in tests before changing implementation. " +
-    "Before enabling TDD: scaffold only the config and dependencies needed to run tests " +
+const PROOF_OFF_PROMPT = [
+  "[PROOF MODE — OFF]",
+  "This extension is proof-first, not TDD-for-everything. " +
+    "Use proof mode when the next change should be made explicit in tests before changing " +
+    "implementation. This usually fits new features, bug fixes, and changes to business " +
+    "logic with clear expected outcomes. " +
+    "Before enabling proof mode: scaffold only the config and dependencies needed to run tests " +
     "— create package manifests and runner config files, install the test framework, " +
     "and ensure the test command works (even if there are no tests yet). " +
-    "Do not create source stubs or production modules before tdd_start unless the task " +
-    "itself is scaffolding. Then call tdd_start to begin TDD. " +
-    "Do not use TDD for config changes, documentation, scaffolding, or exploratory tasks.",
+    "Do not create source stubs or production modules before proof_start unless the task " +
+    "itself is scaffolding. Then call proof_start to begin the proof loop. " +
+    "Do not use proof mode for config changes, documentation, scaffolding, or exploratory tasks.",
 ].join("\n");
 
 const PHASE_GUIDANCE: Record<ActivePhase, string> = {
@@ -37,7 +37,7 @@ const PHASE_GUIDANCE: Record<ActivePhase, string> = {
     "Look for repeated patterns across classes/methods/functions/handlers and extract them.",
     "Deduplicate test fixtures and shared setup.",
     "When the task is complete and all tests pass,",
-    "call tdd_done.",
+    "call proof_done.",
   ].join(" "),
 };
 
@@ -91,7 +91,7 @@ function formatTestCommandSection(testCommand: string, testCwd?: string): string
 
 function buildPhaseSections(phase: ActivePhase, testCommand: string, testCwd?: string): string[] {
   const sections = [
-    `[TDD MODE — ${phase.toUpperCase()} PHASE]`,
+    `[PROOF MODE — ${phase.toUpperCase()} PHASE]`,
     PHASE_GUIDANCE[phase],
     formatTestCommandSection(testCommand, testCwd),
   ];
@@ -110,7 +110,7 @@ function appendPromptSections(base: string, sections: string[]): string {
 
 export function buildSystemPrompt(base: string, phase: Phase, testCommand?: string, testCwd?: string): string {
   if (phase === "off") {
-    return appendPromptSections(base, [TDD_OFF_PROMPT]);
+    return appendPromptSections(base, [PROOF_OFF_PROMPT]);
   }
 
   return appendPromptSections(base, buildPhaseSections(phase, testCommand ?? "", testCwd));

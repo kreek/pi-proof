@@ -61,7 +61,7 @@ export function evaluateTestResult(params: {
   }
 
   const testEvidenceObserved = phase === "specifying" && !passed && summary.failed > 0;
-  const label = `[TDD ${phase.toUpperCase()}] Tests ${passed ? "PASS" : "FAIL"}`;
+  const label = `[PROOF ${phase.toUpperCase()}] Tests ${passed ? "PASS" : "FAIL"}`;
   let appendText = `\n${label}:\n${output}`;
   let nextPhase: Phase | undefined;
   let stubAllowed = false;
@@ -69,7 +69,7 @@ export function evaluateTestResult(params: {
   if (phase === "specifying" && !passed && isImportOnlyFailure(output, summary)) {
     stubAllowed = true;
     appendText +=
-      "\n\n[TDD HINT] Tests failed due to a missing module, not a failing assertion." +
+      "\n\n[PROOF HINT] Tests failed due to a missing module, not a failing assertion." +
       " You may now create a minimal stub (empty class/function with the right exports)" +
       " so the tests can load and fail on actual behavioral assertions. Stay in SPECIFYING" +
       " — do not implement business logic yet. The stub allowance will clear after the next test run.";

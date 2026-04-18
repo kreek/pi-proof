@@ -37,7 +37,7 @@ export function renderWidget(snap: WidgetSnapshot, theme: WidgetTheme, width: nu
     lines.push("");
   }
 
-  lines.push(`${theme.fg("muted", "TDD")} ${phaseLabel}${cycleLabel}`);
+  lines.push(`${theme.fg("muted", "PROOF")} ${phaseLabel}${cycleLabel}`);
 
   if (!snap.summary) {
     lines.push(theme.fg("dim", "  Waiting for tests..."));

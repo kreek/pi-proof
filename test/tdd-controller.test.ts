@@ -38,15 +38,15 @@ describe("createTddController", () => {
     resolveTestConfigMock.mockReset();
   });
 
-  it("describes specifying as behavior-first when enabling TDD", async () => {
+  it("describes specifying as behavior-first when enabling proof mode", async () => {
     resolveTestConfigMock.mockResolvedValue({ command: "npm test", cwd: "/repo" });
     const controller = createTddController();
     const { ctx, ui } = createContext();
 
     const message = await controller.enable(ctx);
 
-    expect(ui.notify).toHaveBeenCalledWith("TDD on — specify behavior in a test");
-    expect(message).toContain("TDD enabled — SPECIFYING phase.");
+    expect(ui.notify).toHaveBeenCalledWith("Proof on — specify behavior in a test");
+    expect(message).toContain("Proof enabled — SPECIFYING phase.");
     expect(message).toContain("Specify the next behavior in a test before changing production code.");
     expect(message).toContain("Test command: npm test");
   });
@@ -65,7 +65,7 @@ describe("createTddController", () => {
     );
     expect(mutation).toEqual({
       block: true,
-      reason: "TDD SPECIFYING phase: specify the next behavior in a test before changing production code",
+      reason: "PROOF SPECIFYING phase: specify the next behavior in a test before changing production code",
     });
   });
 
@@ -90,8 +90,8 @@ describe("createTddController", () => {
         {
           type: "text",
           text:
-            "\n\n[TDD WARNING] This command appears to write to a production file during SPECIFYING." +
-            " TDD best practice: specify the next behavior in a test before modifying production code." +
+            "\n\n[PROOF WARNING] This command appears to write to a production file during SPECIFYING." +
+            " Proof-first best practice: specify the next behavior in a test before modifying production code." +
             " This is a warning only — the command was not blocked.",
         },
       ],

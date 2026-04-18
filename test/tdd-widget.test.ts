@@ -8,7 +8,7 @@ const theme = {
 };
 
 describe("renderWidget", () => {
-  it("renders the active test run panel above the TDD summary", () => {
+  it("renders the active test run panel above the proof summary", () => {
     const lines = renderWidget(
       {
         activeTestRun: {
@@ -32,6 +32,6 @@ describe("renderWidget", () => {
     expect(lines[0]).toContain("┌");
     expect(lines.some((line) => line.includes("$ npm test"))).toBe(true);
     expect(lines.some((line) => line.includes("running spec"))).toBe(true);
-    expect(lines.some((line) => line.includes("TDD IMPLEMENTING cycle 1"))).toBe(true);
+    expect(lines.some((line) => line.includes("PROOF IMPLEMENTING cycle 1"))).toBe(true);
   });
 });

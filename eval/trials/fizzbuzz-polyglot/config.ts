@@ -6,7 +6,7 @@ const config: ProjectConfig = {
   prdFile: "PRD.md",
   taskCount: 3,
   scaffoldDir: "scaffold",
-  plugin: "pi-tdd",
+  plugin: "pi-proof",
   features: ["test-command-detect", "makefile-detection", "phase-gating"],
   variants: {
     "c-tap": {

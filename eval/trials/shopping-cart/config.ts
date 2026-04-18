@@ -5,7 +5,7 @@ const config: ProjectConfig = {
   description: "Shopping cart pricing engine with discounts and tax calculation",
   prdFile: "PRD.md",
   taskCount: 4,
-  plugin: "pi-tdd",
+  plugin: "pi-proof",
   features: ["test-command-detect", "phase-gating", "red-green-refactor"],
   variants: {
     "rust-cargo": {

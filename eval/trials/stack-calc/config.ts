@@ -5,7 +5,7 @@ const config: ProjectConfig = {
   description: "Stack-based calculator library",
   prdFile: "PRD.md",
   taskCount: 3,
-  plugin: "pi-tdd",
+  plugin: "pi-proof",
   features: ["test-command-detect", "phase-gating", "red-green-refactor"],
   variants: {
     "typescript-vitest": {

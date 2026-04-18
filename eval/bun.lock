@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "pi-tdd-eval",
+      "name": "pi-proof-eval",
       "dependencies": {
         "pi-do-eval": "file:../../pi-do-eval",
       },

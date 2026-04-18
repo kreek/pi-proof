@@ -47,12 +47,14 @@ describe("scoreTddCompliance", () => {
     // No tdd_start, no tdd_done, no file writes, no phase changes, no test runs
     // Only the specifying gate gives 20 (no prod writes during specifying = pass)
     expect(score).toBe(20);
-    expect(findings).toContain("Agent never called tdd_start");
+    expect(findings).toContain("Agent never called proof_start");
   });
 
   it("scores tdd_start success (+15)", () => {
     const session = makeSession({
-      toolCalls: [{ timestamp: 1000, name: "tdd_start", arguments: {}, resultText: "TDD enabled", wasBlocked: false }],
+      toolCalls: [
+        { timestamp: 1000, name: "proof_start", arguments: {}, resultText: "Proof enabled", wasBlocked: false },
+      ],
     });
     const { score } = scoreTddCompliance(session, 3);
     // 15 (tdd_start) + 20 (no spec prod writes)
@@ -62,16 +64,18 @@ describe("scoreTddCompliance", () => {
   it("scores tdd_start failure as finding", () => {
     const session = makeSession({
       toolCalls: [
-        { timestamp: 1000, name: "tdd_start", arguments: {}, resultText: "Could not detect", wasBlocked: false },
+        { timestamp: 1000, name: "proof_start", arguments: {}, resultText: "Could not detect", wasBlocked: false },
       ],
     });
     const { findings } = scoreTddCompliance(session, 3);
-    expect(findings.some((f) => f.includes("tdd_start failed"))).toBe(true);
+    expect(findings.some((f) => f.includes("proof_start failed"))).toBe(true);
   });
 
   it("scores tdd_done (+5)", () => {
     const session = makeSession({
-      toolCalls: [{ timestamp: 9000, name: "tdd_done", arguments: {}, resultText: "TDD disabled", wasBlocked: false }],
+      toolCalls: [
+        { timestamp: 9000, name: "proof_done", arguments: {}, resultText: "Proof disabled", wasBlocked: false },
+      ],
     });
     const { score } = scoreTddCompliance(session, 3);
     // 5 (tdd_done) + 20 (no spec prod writes)
@@ -183,8 +187,8 @@ describe("scoreTddCompliance", () => {
   it("caps at 100 for a perfect session", () => {
     const session = makeSession({
       toolCalls: [
-        { timestamp: 1000, name: "tdd_start", arguments: {}, resultText: "TDD enabled", wasBlocked: false },
-        { timestamp: 9500, name: "tdd_done", arguments: {}, resultText: "TDD disabled", wasBlocked: false },
+        { timestamp: 1000, name: "proof_start", arguments: {}, resultText: "Proof enabled", wasBlocked: false },
+        { timestamp: 9500, name: "proof_done", arguments: {}, resultText: "Proof disabled", wasBlocked: false },
       ],
       fileWrites: [
         { timestamp: 2000, path: "calc.test.ts", tool: "write", labels: ["test"] },
@@ -225,7 +229,9 @@ describe("scoreInfrastructure", () => {
 
   it("scores auto-detection (+30)", () => {
     const session = makeSession({
-      toolCalls: [{ timestamp: 1000, name: "tdd_start", arguments: {}, resultText: "TDD enabled", wasBlocked: false }],
+      toolCalls: [
+        { timestamp: 1000, name: "proof_start", arguments: {}, resultText: "Proof enabled", wasBlocked: false },
+      ],
     });
     const score = scoreInfrastructure(session, makeVerify({ passed: false }), false);
     // 30 (auto-detect) + 25 (non-monorepo)
@@ -249,7 +255,9 @@ describe("scoreInfrastructure", () => {
 
   it("gives monorepo bonus only when auto-detected", () => {
     const session = makeSession({
-      toolCalls: [{ timestamp: 1000, name: "tdd_start", arguments: {}, resultText: "TDD enabled", wasBlocked: false }],
+      toolCalls: [
+        { timestamp: 1000, name: "proof_start", arguments: {}, resultText: "Proof enabled", wasBlocked: false },
+      ],
     });
     const score = scoreInfrastructure(session, makeVerify({ passed: false }), true);
     // 30 (auto-detect) + 25 (monorepo + auto-detected)
@@ -264,7 +272,9 @@ describe("scoreInfrastructure", () => {
 
   it("caps at 100", () => {
     const session = makeSession({
-      toolCalls: [{ timestamp: 1000, name: "tdd_start", arguments: {}, resultText: "TDD enabled", wasBlocked: false }],
+      toolCalls: [
+        { timestamp: 1000, name: "proof_start", arguments: {}, resultText: "Proof enabled", wasBlocked: false },
+      ],
       pluginEvents: [testRun(2000, true)],
     });
     const score = scoreInfrastructure(session, makeVerify({ passed: true }), false);
@@ -370,7 +380,7 @@ describe("classifyFile", () => {
 
 describe("verify", () => {
   it("runs subdirectory test commands for monorepos", () => {
-    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tdd-monorepo-"));
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-proof-monorepo-"));
 
     try {
       fs.mkdirSync(path.join(workDir, "backend"));

@@ -5,7 +5,7 @@ const config: TrialConfig = {
   description: "Email address validation library",
   prdFile: "PRD.md",
   taskCount: 1,
-  plugin: "pi-tdd",
+  plugin: "pi-proof",
   features: ["test-command-detect", "phase-gating", "red-green-refactor"],
   variants: {
     "typescript-vitest": {

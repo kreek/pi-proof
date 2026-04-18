@@ -80,11 +80,13 @@ export function createTddController() {
     lastWidgetCtx = ctx;
 
     if (phase === "off") {
+      ctx.ui.setWidget("proof", undefined);
       ctx.ui.setWidget("tdd", undefined);
       return;
     }
 
-    ctx.ui.setWidget("tdd", (_tui, theme) => ({
+    ctx.ui.setWidget("tdd", undefined);
+    ctx.ui.setWidget("proof", (_tui, theme) => ({
       invalidate() {},
       render: (width: number) => renderWidget({ activeTestRun, cycleCount, phase, summary: lastSummary }, theme, width),
     }));
@@ -179,7 +181,8 @@ export function createTddController() {
     }
 
     phase = next;
-    ctx.ui.setStatus("tdd", phase === "off" ? "" : `TDD: ${phase.toUpperCase()}`);
+    ctx.ui.setStatus("tdd", "");
+    ctx.ui.setStatus("proof", phase === "off" ? "" : `PROOF: ${phase.toUpperCase()}`);
     updateWidget(ctx);
   }
 
@@ -204,15 +207,15 @@ export function createTddController() {
     },
 
     async enable(ctx: ExtensionContext): Promise<string> {
-      if (phase !== "off") return "TDD is already active";
+      if (phase !== "off") return "Proof mode is already active";
 
       const config = await resolveTestConfig(ctx.cwd, ctx.hasUI ? ctx.ui : undefined);
       if (!config) {
-        ctx.ui.notify("TDD requires a test command", "warning");
+        ctx.ui.notify("Proof mode requires a test command", "warning");
         return (
           "Could not determine test command. " +
           "Scaffold the project first: create a config file (package.json, pyproject.toml, " +
-          "Cargo.toml, go.mod, etc.) with a test script/dependency, then call tdd_start again."
+          "Cargo.toml, go.mod, etc.) with a test script/dependency, then call proof_start again."
         );
       }
 
@@ -223,10 +226,10 @@ export function createTddController() {
       setPhase("specifying", ctx);
 
       const label = testCwd !== ctx.cwd ? ` in ${path.basename(testCwd)}` : "";
-      ctx.ui.notify(`TDD on${label} \u2014 specify behavior in a test`);
+      ctx.ui.notify(`Proof on${label} \u2014 specify behavior in a test`);
 
       let message =
-        `TDD enabled \u2014 SPECIFYING phase. ` +
+        `Proof enabled \u2014 SPECIFYING phase. ` +
         `Specify the next behavior in a test before changing production code.\n` +
         `Test command: ${testCommand}${label}`;
       if (config.command === "pytest") {
@@ -238,12 +241,12 @@ export function createTddController() {
     },
 
     disable(ctx: ExtensionContext): string {
-      if (phase === "off") return "TDD is already off";
+      if (phase === "off") return "Proof mode is already off";
 
       testCwd = undefined;
       setPhase("off", ctx);
-      ctx.ui.notify("TDD off");
-      return "TDD disabled";
+      ctx.ui.notify("Proof off");
+      return "Proof disabled";
     },
 
     handleProductionWrite(filePath: string, ctx: ExtensionContext): ToolCallMutation | undefined {
@@ -252,7 +255,7 @@ export function createTddController() {
       if (ctx.hasUI) ctx.ui.notify("SPECIFYING: specify behavior in a test before editing production code", "warning");
       return {
         block: true,
-        reason: "TDD SPECIFYING phase: specify the next behavior in a test before changing production code",
+        reason: "PROOF SPECIFYING phase: specify the next behavior in a test before changing production code",
       };
     },
 
@@ -286,8 +289,8 @@ export function createTddController() {
       if (ctx.hasUI) ctx.ui.notify("SPECIFYING: possible production write via shell", "warning");
 
       const warning =
-        "\n\n[TDD WARNING] This command appears to write to a production file during SPECIFYING." +
-        " TDD best practice: specify the next behavior in a test before modifying production code." +
+        "\n\n[PROOF WARNING] This command appears to write to a production file during SPECIFYING." +
+        " Proof-first best practice: specify the next behavior in a test before modifying production code." +
         " This is a warning only — the command was not blocked.";
 
       return appendTextContent(event.content, warning);

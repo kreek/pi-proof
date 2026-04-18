@@ -13,7 +13,7 @@ import type { EvalConfig } from "../types.js";
 const tempDirs: string[] = [];
 
 function makeTempDir(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tdd-providers-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-proof-providers-"));
   tempDirs.push(dir);
   return dir;
 }

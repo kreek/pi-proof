@@ -6,7 +6,7 @@ import { stageTrialPrd } from "../workspace.js";
 
 describe("stageTrialPrd", () => {
   it("copies the trial PRD into the run workspace", () => {
-    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tdd-workspace-"));
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-proof-workspace-"));
     const trialDir = path.join(rootDir, "trial");
     const workDir = path.join(rootDir, "work");
     const prdFile = "docs/PRD.md";
@@ -22,7 +22,7 @@ describe("stageTrialPrd", () => {
   });
 
   it("throws when the trial PRD is missing", () => {
-    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tdd-workspace-"));
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-proof-workspace-"));
     const trialDir = path.join(rootDir, "trial");
     const workDir = path.join(rootDir, "work");
 

@@ -1,7 +1,7 @@
 {
-  "name": "pi-tdd-eval",
+  "name": "pi-proof-eval",
   "version": "0.1.0",
-  "description": "Eval suite for pi-tdd extension",
+  "description": "Eval suite for pi-proof extension",
   "type": "module",
   "scripts": {
     "eval": "bun eval.ts",

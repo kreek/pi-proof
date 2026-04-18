@@ -5,7 +5,7 @@ const config: ProjectConfig = {
   description: "Room booking API with conflict detection and rescheduling",
   prdFile: "PRD.md",
   taskCount: 4,
-  plugin: "pi-tdd",
+  plugin: "pi-proof",
   features: ["test-command-detect", "phase-gating", "red-green-refactor"],
   variants: {
     "python-pytest": {
